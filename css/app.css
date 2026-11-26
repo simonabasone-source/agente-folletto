@@ -10,7 +10,7 @@
   --rosso-chiaro: #fdecea;
   --giallo: #f4c430;
   --app: #0f5f5c;
-  --rip: #8a5a00;
+  --rip: #1f6fb2;
   --no: #5b6866;
   --ass: #8b9795;
   --r: 14px;
@@ -126,3 +126,10 @@ details.via[open] > summary::after { transform: translateY(-50%); }
 details.via .lista { padding: 8px; }
 details.via .lista li { margin-bottom: 6px; }
 details.via .lista .ora { font-size: 1.25rem; }
+
+/* colori delle righe per esito (scelti da Dani): assente bianco, ripassare azzurro chiaro, non interessato grigio */
+.lista li.e-assente { background: #ffffff; }
+.lista li.e-ripassare { background: #dbeefc; border-color: #9fcbee; }
+.lista li.e-non_interessato { background: #e3e6e5; border-color: #bfc6c4; }
+.lista li.e-appuntamento { background: #e1f3ec; border-color: #9fd0bd; }
+.lista li.da-confermare { border: 2px solid var(--rosso); }
