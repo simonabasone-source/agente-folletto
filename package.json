@@ -4,6 +4,8 @@
   "type": "module",
   "description": "App personale di supporto al lavoro sul campo di Dani (agente Folletto).",
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "python3 tests/browser/regressione.py",
+    "test:tutto": "npm test && npm run test:browser"
   }
 }

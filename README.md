@@ -32,10 +32,12 @@ Apri l'indirizzo dell'app in Chrome → menu ⋮ → **Aggiungi a schermata Home
 | Interfaccia | `js/app.js`, `css/app.css`, `index.html` | Schermate |
 | Offline | `sw.js`, `manifest.webmanifest` | App installabile e senza internet |
 
-## Test
+## Test (obbligatori a ogni modifica — vedi `CLAUDE.md`)
 ```
-npm test
+npm run test:tutto      # tutto: controlli delle singole parti + prove nel browser
+npm test                # solo controlli delle singole parti (parser, numeri, agenda…)
+npm run test:browser    # solo prove sul telefono simulato (serve: pip install playwright)
 ```
-I test usano le frasi reali dettate da Dani (`tests/parser.test.mjs`). Ogni nuova frase che il parser sbaglia va aggiunta come test.
+I test usano le frasi reali dettate da Dani (`tests/parser.test.mjs`). Ogni frase che il parser sbaglia diventa un test con il testo originale.
 
 Quando si pubblica una nuova versione, aggiornare `VERSIONE` in `sw.js`.
