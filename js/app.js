@@ -7,7 +7,7 @@ import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './ag
 import { istantanea, differenze, messaggio } from './segnalazioni.js';
 import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
 
-const VERSIONE_APP = '1.3.0 (Step 1)';
+const VERSIONE_APP = '1.4.0 (Step 1)';
 
 const stato = {
   vista: 'giro',
@@ -140,7 +140,7 @@ function rigaContatto(c, sinistra, { senzaIndirizzo = false } = {}) {
     ? (c.daFissare || !c.data ? 'da fissare' : `${dataBreve(c.data)}${c.ora ? ' ' + prefissoOra(c.oraTipo) + c.ora : ''}`)
     : '';
   const sotto = [quando, senzaIndirizzo ? null : indirizzo(c), c.note].filter(Boolean).join(' · ');
-  return `<li class="${c.confermato ? '' : 'da-confermare'}"><button data-id="${c.id}">
+  return `<li class="e-${c.esito}${c.confermato ? '' : ' da-confermare'}"><button data-id="${c.id}">
       <span class="ora">${esc(sinistra)}</span>
       <span><span class="nome">${esc(c.identificativo || '?')}</span> <span class="badge b-${c.esito}">${ETICHETTA[c.esito]}</span>${c.confermato ? '' : ' <span class="badge b-null">da confermare</span>'}</span>
       <span class="sotto">${esc(sotto)}</span>
@@ -410,7 +410,7 @@ function htmlAgenda() {
       v.tipo === 'richiamo' ? `appuntamento ${dataBreve(c.data)}${c.ora ? ' ' + c.ora : ''}` : null,
       indirizzo(c), c.telefono, c.pretesto, c.modello, c.note,
     ].filter(Boolean).join(' · ');
-    return `<li class="${c.confermato ? '' : 'da-confermare'}"><button data-id="${c.id}">
+    return `<li class="e-${c.esito}${c.confermato ? '' : ' da-confermare'}"><button data-id="${c.id}">
       <span class="ora">${esc(ora)}</span>
       <span><span class="nome">${esc(c.identificativo)}</span> <span class="badge b-${v.tipo}">${ETICHETTA_AGENDA[v.tipo]}</span></span>
       <span class="sotto">${esc(sotto)}</span></button></li>`;

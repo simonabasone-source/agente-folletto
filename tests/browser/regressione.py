@@ -131,6 +131,13 @@ async def main():
         aperte = await pg.evaluate("[...document.querySelectorAll('#lista-oggi details.via')].map(d => d.querySelector('.via-nome').textContent.trim() + ':' + d.open)")
         verifica('la via corrente è aperta, le altre chiuse', aperte[0].startswith('Via Roma:true') and aperte[1].endswith(':false'), aperte)
 
+        print('Colori delle righe per esito')
+        colori = await pg.evaluate("""Object.fromEntries([...document.querySelectorAll('#lista-oggi li[class*="e-"]')]
+            .map(li => [li.className.match(/e-(\\w+)/)[1], getComputedStyle(li).backgroundColor]))""")
+        verifica('assente bianco', colori.get('assente') == 'rgb(255, 255, 255)', colori)
+        verifica('ripassare azzurro chiaro', colori.get('ripassare') == 'rgb(219, 238, 252)', colori)
+        verifica('non interessato grigio', colori.get('non_interessato') == 'rgb(227, 230, 229)', colori)
+
         print('Correggere una riga salvata da sola')
         await riga(pg, 'Verdi')
         verifica('la riga si apre al tocco', await pg.is_visible('#s-conferma'))
