@@ -6,7 +6,7 @@ import { statistiche } from './stats.js';
 import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './agenda.js';
 import { istantanea, differenze, messaggio } from './segnalazioni.js';
 
-const VERSIONE_APP = '1.2.0 (Step 1)';
+const VERSIONE_APP = '1.2.1 (Step 1)';
 
 const stato = {
   vista: 'giro',

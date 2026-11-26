@@ -1,6 +1,6 @@
 // Service worker: tiene l'app disponibile anche senza internet.
 // Cambia VERSIONE a ogni rilascio, così il telefono scarica i file nuovi.
-const VERSIONE = 'folletto-v1.2.0';
+const VERSIONE = 'folletto-v1.2.1';
 const FILE = [
   './',
   './index.html',
@@ -19,7 +19,10 @@ const FILE = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSIONE).then((c) => c.addAll(FILE)).then(() => self.skipWaiting()));
+  // cache: 'reload' = scarica sempre dalla rete, mai copie vecchie tenute dal browser (GitHub Pages le tiene 10 minuti)
+  e.waitUntil(caches.open(VERSIONE)
+    .then((c) => c.addAll(FILE.map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -34,7 +37,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.open(VERSIONE).then(async (cache) => {
       const salvata = await cache.match(e.request, { ignoreSearch: true });
-      const rete = fetch(e.request)
+      const rete = fetch(e.request, { cache: 'no-cache' })
         .then((r) => { if (r.ok) cache.put(e.request, r.clone()); return r; })
         .catch(() => null);
       return salvata || (await rete) || cache.match('./index.html');
