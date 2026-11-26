@@ -5,8 +5,9 @@ import * as db from './db.js';
 import { statistiche } from './stats.js';
 import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './agenda.js';
 import { istantanea, differenze, messaggio } from './segnalazioni.js';
+import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
 
-const VERSIONE_APP = '1.2.1 (Step 1)';
+const VERSIONE_APP = '1.3.0 (Step 1)';
 
 const stato = {
   vista: 'giro',
@@ -16,6 +17,7 @@ const stato = {
   correzioni: [],
   coda: [],
   dettaglioNumeri: false,
+  tendine: {}, // chiave via -> aperta/chiusa scelta da Dani
   protetto: false,
 };
 
@@ -87,7 +89,7 @@ function htmlGiro() {
       <p class="aiuto">«Civico 12 Rossi assente» · «Adesso via Roma» · «Civico 30 condominio 12 campanelli»</p>
     </div>
     <h2>Oggi</h2>
-    <ul class="lista" id="lista-oggi"></ul>`;
+    <div id="lista-oggi"></div>`;
 }
 
 function collegaGiro() {
@@ -110,10 +112,22 @@ function aggiornaGiro() {
   $('#dettaglio-num').innerHTML = stato.dettaglioNumeri
     ? `<div class="dettaglio-num">Parlato con <b>${s.parlati}</b> · Assenti <b>${s.assenti}</b>${s.daConfermare ? ` · <span style="color:var(--rosso)">Da confermare <b>${s.daConfermare}</b></span>` : ''}</div>`
     : '';
-  const lista = stato.contatti.filter((c) => c.giorno === oggi()).sort((a, b) => b.creato.localeCompare(a.creato));
-  $('#lista-oggi').innerHTML = lista.length
-    ? lista.map((c) => rigaContatto(c, isoTime(new Date(c.creato)))).join('')
-    : '<li class="vuoto" style="border:0;background:none">Ancora nessun citofono oggi.</li>';
+  const gruppi = raggruppaPerVia(stato.contatti.filter((c) => c.giorno === oggi()));
+  const qui = chiaveVia(stato.ctx.comune, stato.ctx.via);
+  $('#lista-oggi').innerHTML = gruppi.length
+    ? gruppi.map((g) => {
+      const aperta = stato.tendine[g.chiave] ?? (g.chiave === qui);
+      const n = g.conteggi;
+      const conti = [`${n.citofoni} citofoni`, n.appuntamenti && `${n.appuntamenti} app.`, n.ripassi && `${n.ripassi} rip.`].filter(Boolean).join(' · ');
+      return `<details class="via" data-chiave="${esc(g.chiave)}" ${aperta ? 'open' : ''}>
+        <summary>
+          <span class="via-nome">${esc(g.via || 'Via non detta')}${n.daConfermare ? ' <span class="badge b-null">' + n.daConfermare + '</span>' : ''}</span>
+          <span class="via-sotto">${esc([g.comune, conti].filter(Boolean).join(' · '))}</span>
+        </summary>
+        <ul class="lista">${g.contatti.map((c) => rigaContatto(c, c.civico ?? '–', { senzaIndirizzo: true })).join('')}</ul>
+      </details>`;
+    }).join('')
+    : '<p class="vuoto">Ancora nessun citofono oggi.</p>';
 }
 
 function indirizzo(c) {
@@ -121,11 +135,11 @@ function indirizzo(c) {
   return [c.via ? c.via + civ : null, c.comune].filter(Boolean).join(', ');
 }
 
-function rigaContatto(c, sinistra) {
+function rigaContatto(c, sinistra, { senzaIndirizzo = false } = {}) {
   const quando = (c.esito === 'appuntamento' || c.esito === 'ripassare')
     ? (c.daFissare || !c.data ? 'da fissare' : `${dataBreve(c.data)}${c.ora ? ' ' + prefissoOra(c.oraTipo) + c.ora : ''}`)
     : '';
-  const sotto = [quando, indirizzo(c), c.note].filter(Boolean).join(' · ');
+  const sotto = [quando, senzaIndirizzo ? null : indirizzo(c), c.note].filter(Boolean).join(' · ');
   return `<li class="${c.confermato ? '' : 'da-confermare'}"><button data-id="${c.id}">
       <span class="ora">${esc(sinistra)}</span>
       <span><span class="nome">${esc(c.identificativo || '?')}</span> <span class="badge b-${c.esito}">${ETICHETTA[c.esito]}</span>${c.confermato ? '' : ' <span class="badge b-null">da confermare</span>'}</span>
@@ -136,6 +150,9 @@ function rigaContatto(c, sinistra) {
 // Un solo ascoltatore per tutte le liste: funziona anche sulle righe aggiunte dopo.
 function collegaListe() {
   $('#app').addEventListener('click', (e) => {
+    // ricorda quali tendine Dani ha aperto o chiuso con un tocco
+    const sum = e.target.closest('details.via > summary');
+    if (sum) { const d = sum.parentElement; stato.tendine[d.dataset.chiave] = !d.open; return; }
     const b = e.target.closest('.lista button[data-id]');
     if (!b) return;
     const c = stato.contatti.find((x) => x.id === b.dataset.id);
@@ -185,6 +202,7 @@ async function invia() {
     else stato.coda.push(rec.id);
   }
 
+  if (chiaveVia(r.ctx.comune, r.ctx.via) !== chiaveVia(stato.ctx.comune, stato.ctx.via)) delete stato.tendine[chiaveVia(r.ctx.comune, r.ctx.via)];
   stato.ctx = { ...r.ctx };
   if (stato.ctx.condominio && !stato.ctx.condominio.id && nuovoCondo && stato.ctx.condominio.civico === nuovoCondo.civico) {
     stato.ctx.condominio = nuovoCondo;
