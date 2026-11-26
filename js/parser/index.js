@@ -352,7 +352,7 @@ function dividi(testo) {
     .filter(Boolean);
 }
 
-const RE_CIVICO = R('^(?:al\\s+)?\\b(civico|numero|n\\.)\\s*(\\d{1,4}(?:\\s*[a-z](?![\\p{L}]))?)\\b', 'iu');
+const RE_CIVICO = R('^(?:al\\s+)?(?:\\b(civico|numero|n\\.)\\s*|(?=\\d))(\\d{1,4}(?:\\s*[a-z](?![\\p{L}]))?)\\b', 'iu');
 const RE_INTERNO = R('^\\b(interno|int\\.|scala|piano)\\s+(\\w{1,3})\\b', 'iu');
 const RE_CONDO = R('^[\\s,]*(?:è\\s+un\\s+|e\\s+)?\\b(?:condominio|palazzina|palazzo)\\b(?:\\s+(?:di|da|con))?(?:\\s+(\\d{1,3})\\s+(?:campanell[io]|appartament[io]|famiglie|interni))?');
 
@@ -401,7 +401,13 @@ export function analizza(testo, { now = new Date(), ctx = {}, correzioni = [] } 
         items.push({ tipo: 'posizione', sottotipo: 'civico', comune: corrente.comune, via: corrente.via, civico, avvisi: [], testoOriginale: frase });
         continue;
       }
-      const c = parseContatto(frase, { identificativo: `Civico ${civico}`, lunghezza: civ[0].length }, corrente, now);
+      // "Civico 12 Rossi assente": se dopo il numero c'è un cognome, il nome è il cognome
+      const spazio = resto.match(/^[\s,]*/)[0].length;
+      const fineCognome = trovaIdentificativo(resto.slice(spazio), trovaEsito(resto.slice(spazio)).match?.index ?? -1);
+      const cognome = fineCognome ? capitalizza(resto.slice(spazio, spazio + fineCognome)) : null;
+      const c = cognome
+        ? parseContatto(frase.slice(civ[0].length + spazio), null, corrente, now)
+        : parseContatto(frase, { identificativo: `Civico ${civico}`, lunghezza: civ[0].length }, corrente, now);
       items.push({ ...c, comune: corrente.comune, via: corrente.via, civico, condominio: corrente.condominio, testoOriginale: frase });
       // la casa successiva ha un altro civico: non lo trasciniamo sui contatti dopo
       if (!corrente.condominio) corrente = { ...corrente, civico: null };

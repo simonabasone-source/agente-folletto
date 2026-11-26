@@ -6,7 +6,7 @@ import { statistiche } from './stats.js';
 import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './agenda.js';
 import { istantanea, differenze, messaggio } from './segnalazioni.js';
 
-const VERSIONE_APP = '1.1.0 (Step 1)';
+const VERSIONE_APP = '1.2.0 (Step 1)';
 
 const stato = {
   vista: 'giro',
@@ -38,7 +38,14 @@ async function avvio() {
   collegaListe();
   render();
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    const avevaVersione = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').then((reg) => reg.update()).catch(() => {});
+    // nuova versione installata: proponi di ricaricare (mai in automatico, per non perdere una dettatura)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (avevaVersione) toast('È arrivata una versione nuova dell\'app.', () => location.reload(), 'Aggiorna');
+    });
+  }
 }
 
 function vai(vista) {
@@ -77,7 +84,7 @@ function htmlGiro() {
         <button class="svuota" id="svuota" type="button">Svuota</button>
         <button class="invia" id="invia" type="button">Invia</button>
       </div>
-      <p class="aiuto">«Rossi assente» · «Adesso via Roma» · «Civico 30 condominio 12 campanelli»</p>
+      <p class="aiuto">«Civico 12 Rossi assente» · «Adesso via Roma» · «Civico 30 condominio 12 campanelli»</p>
     </div>
     <h2>Oggi</h2>
     <ul class="lista" id="lista-oggi"></ul>`;
@@ -420,7 +427,7 @@ function htmlMenu() {
     <button class="menu-voce" id="m-esporta">Esporta backup (file)</button>
     <button class="menu-voce" id="m-importa">Importa backup</button>
     <input type="file" id="m-file" accept="application/json,.json" hidden>
-    <p class="nota">I dati sono solo su questo telefono. Fai un backup ogni tanto e salvalo su Drive o mandalo su WhatsApp.</p>
+    <p class="nota">I dati sono solo su questo telefono. Fai un backup una volta a settimana e salvalo sul tuo Google Drive. Non mandarlo in chat: contiene i dati dei clienti.</p>
     <h2>Cognomi corretti (${corr.length})</h2>
     ${corr.length ? `<ul class="lista">${corr.map((c) => `<li><button data-corr="${esc(c.da)}"><span class="ora">✕</span><span><span class="nome">${esc(c.a)}</span></span><span class="sotto">quando la tastiera scrive «${esc(c.da)}»</span></button></li>`).join('')}</ul><p class="nota">Tocca una correzione per eliminarla.</p>` : '<p class="vuoto">Nessuna. Quando correggi un cognome nella scheda, l\'app lo ricorda qui.</p>'}
     <h2>Info</h2>
@@ -530,9 +537,9 @@ function modificaPosizione() {
 
 // ---------------------------------------------------------------- toast
 let timerToast = null;
-function toast(msg, annulla) {
+function toast(msg, annulla, etichetta = 'Annulla') {
   const t = $('#toast');
-  t.innerHTML = `<span>${esc(msg)}</span>${annulla ? '<button type="button">Annulla</button>' : ''}`;
+  t.innerHTML = `<span>${esc(msg)}</span>${annulla ? `<button type="button">${esc(etichetta)}</button>` : ''}`;
   t.hidden = false;
   clearTimeout(timerToast);
   if (annulla) t.querySelector('button').addEventListener('click', async () => { t.hidden = true; await annulla(); });

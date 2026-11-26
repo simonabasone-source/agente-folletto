@@ -184,3 +184,35 @@ test('il civico di un contatto non passa al contatto successivo', () => {
   r = analizza('Rossi assente', { now, ctx: r.ctx });
   assert.equal(r.items[0].civico, null);
 });
+
+test('civico seguito dal cognome (come detta Dani)', () => {
+  const ctx = { comune: 'Carpaneto', via: 'Via Roma' };
+  const a = uno('Civico 12 Rossi assente', ctx);
+  assert.equal(a.identificativo, 'Rossi');
+  assert.equal(a.civico, '12');
+  assert.equal(a.esito, 'assente');
+  assert.equal(a.note, '');
+  assert.equal(a.daConfermare, false);
+  const b = uno('civico 8 bianchi appuntamento domani alle 17', ctx);
+  assert.equal(b.identificativo, 'Bianchi');
+  assert.equal(b.civico, '8');
+  assert.equal(b.ora, '17:00');
+  const c = uno('Civico 15 Con tardi appuntamento lunedì alle 11', ctx);
+  assert.equal(c.identificativo, 'Con Tardi');
+  assert.equal(c.civico, '15');
+  const d = uno("Civico 4 Mitev marito ha detto di passare domani alle 14", ctx);
+  assert.equal(d.identificativo, 'Mitev');
+  assert.match(d.note, /marito/);
+});
+
+test('numero senza la parola civico', () => {
+  const a = uno('12 Rossi non interessato', { via: 'Via Roma' });
+  assert.equal(a.identificativo, 'Rossi');
+  assert.equal(a.civico, '12');
+  assert.equal(uno('30 condominio 8 campanelli').campanelli, 8);
+});
+
+test('civico senza cognome resta "Civico N"', () => {
+  assert.equal(uno('Civico 12 non interessato').identificativo, 'Civico 12');
+  assert.equal(uno("Civico 8 ripassare dopo le 19").identificativo, 'Civico 8');
+});
