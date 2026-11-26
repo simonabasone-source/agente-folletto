@@ -13,7 +13,10 @@ Sostituisce il blocco note cartaceo: dettatura citofono per citofono, agenda app
 3. Assenti e non interessati senza note vengono salvati subito (c'è **Annulla** per qualche secondo).
 4. Appuntamenti, ripassi e note aprono la scheda: controlla giorno e ora (scritti per esteso) e tocca **Conferma**.
 5. **Agenda**: appuntamenti, ripassi e richiami da oggi in avanti, più quelli da fissare.
-6. **Menu**: posizione a mano, backup, cognomi corretti.
+6. **Menu**: frasi capite male da mandare a Simona, posizione a mano, backup, cognomi corretti.
+
+## Frasi capite male
+Quando Dani corregge nella scheda qualcosa che l'app aveva capito (cognome, esito, giorno, ora), l'app se lo segna. Menu → **Frasi da mandare a Simona** apre WhatsApp con il messaggio pronto. Le frasi vanno aggiunte a `tests/parser.test.mjs` e il parser corretto.
 
 ## Installazione sul telefono (Android)
 Apri l'indirizzo dell'app in Chrome → menu ⋮ → **Aggiungi a schermata Home** / **Installa app**.
@@ -25,6 +28,7 @@ Apri l'indirizzo dell'app in Chrome → menu ⋮ → **Aggiungi a schermata Home
 | Dati | `js/db.js` | Database locale IndexedDB, backup |
 | Numeri | `js/stats.js` | Campanelli, appuntamenti, ripassi, assenti |
 | Agenda | `js/agenda.js` | Voci per giorno, da fissare, sovrapposizioni |
+| Segnalazioni | `js/segnalazioni.js` | Frasi corrette da Dani e messaggio per Simona |
 | Interfaccia | `js/app.js`, `css/app.css`, `index.html` | Schermate |
 | Offline | `sw.js`, `manifest.webmanifest` | App installabile e senza internet |
 

@@ -4,8 +4,9 @@ import { isoDate, isoTime, dataEstesa, dataBreve, addDays } from './parser/dates
 import * as db from './db.js';
 import { statistiche } from './stats.js';
 import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './agenda.js';
+import { istantanea, differenze, messaggio } from './segnalazioni.js';
 
-const VERSIONE_APP = '1.0.0 (Step 1)';
+const VERSIONE_APP = '1.1.0 (Step 1)';
 
 const stato = {
   vista: 'giro',
@@ -34,6 +35,7 @@ async function avvio() {
   stato.protetto = await db.proteggiArchivio();
 
   document.querySelectorAll('#nav button').forEach((b) => b.addEventListener('click', () => vai(b.dataset.vista)));
+  collegaListe();
   render();
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -50,7 +52,7 @@ function vai(vista) {
 function render() {
   const app = $('#app');
   if (stato.vista === 'giro') { app.innerHTML = htmlGiro(); collegaGiro(); aggiornaGiro(); }
-  if (stato.vista === 'agenda') { app.innerHTML = htmlAgenda(); collegaListe(app); }
+  if (stato.vista === 'agenda') { app.innerHTML = htmlAgenda(); }
   if (stato.vista === 'menu') { app.innerHTML = htmlMenu(); collegaMenu(); }
 }
 
@@ -87,7 +89,6 @@ function collegaGiro() {
   $('#testo').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); invia(); } });
   $('#btn-pos').addEventListener('click', modificaPosizione);
   $('#contatori').addEventListener('click', () => { stato.dettaglioNumeri = !stato.dettaglioNumeri; aggiornaGiro(); });
-  collegaListe($('#app'));
 }
 
 function aggiornaGiro() {
@@ -125,11 +126,14 @@ function rigaContatto(c, sinistra) {
     </button></li>`;
 }
 
-function collegaListe(root) {
-  root.querySelectorAll('.lista button[data-id]').forEach((b) => b.addEventListener('click', () => {
+// Un solo ascoltatore per tutte le liste: funziona anche sulle righe aggiunte dopo.
+function collegaListe() {
+  $('#app').addEventListener('click', (e) => {
+    const b = e.target.closest('.lista button[data-id]');
+    if (!b) return;
     const c = stato.contatti.find((x) => x.id === b.dataset.id);
     if (c) apriScheda(c);
-  }));
+  });
 }
 
 async function invia() {
@@ -166,6 +170,7 @@ async function invia() {
       note: it.note, avvisi: it.avvisi, testoOriginale: it.testoOriginale,
       confermato: !it.daConfermare,
     };
+    rec.letto = istantanea(rec);
     await db.metti('contatti', rec);
     stato.contatti.push(rec);
     salvati.push({ store: 'contatti', id: rec.id });
@@ -326,6 +331,9 @@ async function salvaBozza(confermato) {
   if (!conData) { bozza.data = null; bozza.ora = null; bozza.daFissare = false; bozza.richiamo = null; }
   if (bozza.richiamo?.giorniPrima && bozza.data && !bozza.daFissare) bozza.richiamo.data = addDays(bozza.data, -bozza.richiamo.giorniPrima);
   if (confermato) { bozza.confermato = true; bozza.avvisi = []; }
+  const diff = differenze(bozza.letto, bozza);
+  if (diff.length) bozza.segnalazione = { campi: diff, inviata: false };
+  else if (bozza.segnalazione && !bozza.segnalazione.inviata) delete bozza.segnalazione;
   await db.metti('contatti', bozza);
   stato.contatti = stato.contatti.map((c) => (c.id === bozza.id ? bozza : c));
 }
@@ -400,7 +408,12 @@ function htmlAgenda() {
 // ---------------------------------------------------------------- menu
 function htmlMenu() {
   const corr = [...stato.correzioni].sort((a, b) => a.a.localeCompare(b.a));
+  const segn = daSegnalare();
   return `
+    <h2>Frasi capite male</h2>
+    <button class="menu-voce" id="m-segnala" ${segn.length ? 'style="border:2px solid var(--rosso);font-weight:700"' : ''}>Frasi da mandare a Simona (${segn.length})</button>
+    <p class="nota">Ogni volta che correggi qualcosa che l'app aveva capito male, finisce qui. Tocca per mandarle su WhatsApp.</p>
+    <div id="m-segnala-dopo"></div>
     <h2>Posizione</h2>
     <button class="menu-voce" id="m-pos">Cambia paese / via / civico a mano</button>
     <h2>Backup</h2>
@@ -414,7 +427,36 @@ function htmlMenu() {
     <p class="nota">Versione ${VERSIONE_APP} · ${stato.contatti.length} contatti salvati · Archivio protetto: ${stato.protetto ? 'sì' : 'no (fai backup spesso)'}</p>`;
 }
 
+function daSegnalare() {
+  return stato.contatti
+    .filter((c) => c.segnalazione && !c.segnalazione.inviata)
+    .sort((a, b) => a.creato.localeCompare(b.creato));
+}
+
+async function segnaInviate(lista) {
+  for (const c of lista) {
+    c.segnalazione.inviata = true;
+    await db.metti('contatti', c);
+  }
+  toast(`${lista.length} frasi segnate come inviate. Grazie!`);
+  render();
+}
+
+async function inviaSegnalazioni() {
+  const lista = daSegnalare();
+  if (!lista.length) { toast('Nessuna frase da mandare: per ora l\'app non ha sbagliato.'); return; }
+  const testo = messaggio(lista);
+  if (navigator.share) {
+    try { await navigator.share({ text: testo }); await segnaInviate(lista); return; } catch (e) { if (e?.name === 'AbortError') return; }
+  }
+  // senza condivisione: apre WhatsApp e lascia il tasto per svuotare l'elenco
+  window.open(`https://wa.me/?text=${encodeURIComponent(testo)}`, '_blank');
+  $('#m-segnala-dopo').innerHTML = '<button class="menu-voce" id="m-svuota">Le ho mandate: svuota l\'elenco</button>';
+  $('#m-svuota').addEventListener('click', () => segnaInviate(lista));
+}
+
 function collegaMenu() {
+  $('#m-segnala').addEventListener('click', inviaSegnalazioni);
   $('#m-pos').addEventListener('click', modificaPosizione);
   $('#m-esporta').addEventListener('click', async () => {
     const dati = await db.esporta();
