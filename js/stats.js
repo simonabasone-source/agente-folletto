@@ -7,6 +7,9 @@
 export function statistiche(posizioni, contatti, giorno) {
   const condomini = posizioni.filter((p) => p.giorno === giorno && p.sottotipo === 'condominio');
   const oggi = contatti.filter((c) => c.giorno === giorno);
+  const idCondomini = new Set(condomini.map((p) => p.id));
+  // un contatto conta nel condominio solo se quel condominio esiste ancora (Dani può eliminarlo)
+  const nelCondominio = (c) => c.condominioId && idCondomini.has(c.condominioId);
 
   const s = { campanelli: 0, parlati: 0, assenti: 0, nonInteressati: 0, appuntamenti: 0, ripassi: 0, daConfermare: 0 };
 
@@ -17,7 +20,7 @@ export function statistiche(posizioni, contatti, giorno) {
     if (c.esito === 'appuntamento') s.appuntamenti++;
     if (c.esito === 'ripassare') s.ripassi++;
     if (!c.confermato) s.daConfermare++;
-    if (!c.condominioId) s.campanelli++;
+    if (!nelCondominio(c)) s.campanelli++;
   }
 
   for (const cond of condomini) {
