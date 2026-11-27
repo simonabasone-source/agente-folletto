@@ -149,9 +149,16 @@ details.via .lista .ora { font-size: 1.25rem; }
 .lista li.condominio { background: #fff8e1; border: 1px dashed #c9a227; }
 .lista li.condominio .nome { color: #6b5200; }
 
+/* cognomi dentro un condominio: rientrati sotto la riga del condominio */
+.lista li.in-condominio { margin-left: 14px; border-left: 5px solid #c9a227; }
+
 /* colori delle righe per esito (scelti da Dani): assente bianco, ripassare azzurro chiaro, non interessato grigio */
 .lista li.e-assente { background: #ffffff; }
 .lista li.e-ripassare { background: #dbeefc; border-color: #9fcbee; }
 .lista li.e-non_interessato { background: #e3e6e5; border-color: #bfc6c4; }
 .lista li.e-appuntamento { background: #e1f3ec; border-color: #9fd0bd; }
 .lista li.da-confermare { border: 2px solid var(--rosso); }
+
+/* la barretta gialla del condominio vince sul colore dell'esito */
+.lista li.in-condominio { border-left-color: #c9a227; }
+.lista li.in-condominio.da-confermare { border-left: 5px solid #c9a227; }
