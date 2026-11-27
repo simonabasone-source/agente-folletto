@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { raggruppaPerVia, chiaveVia } from '../js/raggruppa.js';
 
-test('raggruppa per paese e via, civici in ordine di numero, via più recente prima', () => {
+test('raggruppa per paese e via; via più recente prima; dentro la via l\'ultimo campanello in alto', () => {
   const c = [
     { id: 'a', comune: 'Carpaneto', via: 'Via Roma', civico: '12', esito: 'assente', confermato: true, creato: '2026-11-26T10:00' },
     { id: 'b', comune: 'Carpaneto', via: 'Via Roma', civico: '3', esito: 'appuntamento', confermato: true, creato: '2026-11-26T10:05' },
@@ -12,7 +12,7 @@ test('raggruppa per paese e via, civici in ordine di numero, via più recente pr
   ];
   const g = raggruppaPerVia(c);
   assert.deepEqual(g.map((x) => `${x.comune}/${x.via}`), ['Carpaneto/Via Alfieri', 'Carpaneto/Via Roma', 'Santo Stefano/Via Roma']);
-  assert.deepEqual(g[1].contatti.map((x) => x.id), ['b', 'a', 'c']);
+  assert.deepEqual(g[1].righe.map((r) => r.contatto.id), ['c', 'b', 'a']);
   assert.deepEqual(g[1].conteggi, { citofoni: 3, appuntamenti: 1, ripassi: 1, daConfermare: 1 });
   assert.equal(g[1].chiave, chiaveVia('Carpaneto', 'Via Roma'));
 });
@@ -26,7 +26,7 @@ test('un condominio senza cognomi crea comunque la sua tendina (caso di Dani 27/
   assert.equal(g[0].conteggi.citofoni, 0);
 });
 
-test('condomini in ordine: 6A con i suoi cognomi in ordine di dettatura, poi 6B (richiesta di Dani 27/11)', () => {
+test('ultimo campanello in alto; ogni condominio resta un blocco con i suoi cognomi (richieste di Dani 27/11)', () => {
   const condomini = [
     { id: 'B', comune: 'Piacenza', via: 'Via X', civico: '6B', campanelli: 12, creato: '2026-11-27T10:30' },
     { id: 'A', comune: 'Piacenza', via: 'Via X', civico: '6A', campanelli: 12, creato: '2026-11-27T10:00' },
@@ -43,5 +43,5 @@ test('condomini in ordine: 6A con i suoi cognomi in ordine di dettatura, poi 6B 
   ];
   const [g] = raggruppaPerVia(contatti, condomini);
   const ordine = g.righe.flatMap((r) => (r.tipo === 'condominio' ? [`[${r.posizione.civico}]`, ...r.contatti.map((x) => x.id)] : [r.contatto.id]));
-  assert.deepEqual(ordine, ['Casa4', '[6A]', 'SantAngelo', 'Pedrini', 'Fralli', '[6B]', 'Boselli', 'Rugani', 'Casa8']);
+  assert.deepEqual(ordine, ['Casa8', '[6B]', 'Rugani', 'Boselli', '[6A]', 'Fralli', 'Pedrini', 'SantAngelo', 'Casa4']);
 });

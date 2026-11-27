@@ -9,30 +9,29 @@ export const chiaveVia = (comune, via) => `${(comune ?? '').toLowerCase()}|${(vi
 
 /**
  * @returns {Array<{chiave, comune, via, contatti, conteggi:{citofoni, appuntamenti, ripassi, daConfermare}}>}
- *   vie ordinate dalla più recente; dentro ogni via, contatti per numero civico (poi per ora).
+ *   vie ordinate dalla più recente; dentro ogni via le righe in `righe` (ultimo campanello in alto).
  */
-const perCivico = (a, b) => (numeroCivico(a.civico) - numeroCivico(b.civico))
-  || String(a.civico ?? '').localeCompare(String(b.civico ?? ''))
-  || (a.creato ?? '').localeCompare(b.creato ?? '');
-
 /**
- * Ordine delle righe dentro una via (richiesta di Dani 27/11): ogni condominio è seguito
- * dai SUOI cognomi nell'ordine in cui li ha dettati; poi il condominio successivo.
- * Case singole al loro posto per numero civico.
+ * Ordine delle righe dentro una via (richieste di Dani 27/11):
+ * - l'ULTIMO campanello suonato in alto, il primo in fondo;
+ * - ogni condominio resta un blocco: la sua riga e sotto i suoi cognomi (anche lì l'ultimo in alto);
+ *   il blocco sta dove cade il suo campanello più recente.
  * @returns {Array<{tipo:'condominio', posizione, contatti} | {tipo:'contatto', contatto}>}
  */
 export function righeInOrdine(contatti, condomini) {
   const ids = new Set(condomini.map((p) => p.id));
+  const piuRecenteprima = (a, b) => (b.creato ?? '').localeCompare(a.creato ?? '');
   const blocchi = [
-    ...condomini.map((p) => ({
-      tipo: 'condominio', posizione: p, civico: p.civico, creato: p.creato,
-      contatti: contatti.filter((c) => c.condominioId === p.id).sort((a, b) => (a.creato ?? '').localeCompare(b.creato ?? '')),
-    })),
+    ...condomini.map((p) => {
+      const dentro = contatti.filter((c) => c.condominioId === p.id).sort(piuRecenteprima);
+      const ultimo = [p.creato, ...dentro.map((c) => c.creato)].filter(Boolean).sort().pop() ?? '';
+      return { tipo: 'condominio', posizione: p, contatti: dentro, creato: ultimo };
+    }),
     ...contatti.filter((c) => !(c.condominioId && ids.has(c.condominioId)))
-      .map((c) => ({ tipo: 'contatto', contatto: c, civico: c.civico, creato: c.creato })),
+      .map((c) => ({ tipo: 'contatto', contatto: c, creato: c.creato })),
   ];
-  blocchi.sort(perCivico);
-  return blocchi.map(({ civico, creato, ...b }) => b);
+  blocchi.sort(piuRecenteprima);
+  return blocchi.map(({ creato, ...b }) => b);
 }
 
 export function raggruppaPerVia(contatti, condomini = []) {
