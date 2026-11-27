@@ -163,6 +163,17 @@ async def main():
         verifica('la riga del condominio sparisce', await pg.locator('#lista-oggi button[data-condo]:has-text("Civico 40"), #lista-oggi button[data-condo]:has-text("6 campanelli")').count() == 0)
         await pg.evaluate("document.querySelector('#toast').hidden = true")
 
+        print('Condomini in ordine (richiesta di Dani 27/11)')
+        await detta(pg, 'Adesso via Verdi')
+        for f in ['Civico 6A condominio 3 campanelli', 'Uno assente', 'Due non interessato',
+                  'Civico 6B condominio 3 campanelli', 'Tre assente', 'Quattro assente']:
+            await detta(pg, f)
+        ordine = await pg.evaluate("""[...[...document.querySelectorAll('#lista-oggi details.via')].find(d => d.querySelector('.via-nome').textContent.trim().startsWith('Via Verdi')).querySelectorAll('li')]
+            .map(li => li.classList.contains('condominio') ? '[' + li.querySelector('.ora').textContent.trim() + ']' : li.querySelector('.nome').textContent.trim())""")
+        verifica('6A, i suoi cognomi, poi 6B e i suoi', ordine == ['[6A]', 'Uno', 'Due', '[6B]', 'Tre', 'Quattro'], ordine)
+        rientro = await pg.locator('#lista-oggi details.via:has(.via-nome:text-is("Via Verdi")) li.in-condominio').count()
+        verifica('i cognomi del condominio sono rientrati sotto di esso', rientro == 4, rientro)
+
         print('Agenda')
         await pg.click('#nav button[data-vista=agenda]'); await pg.wait_for_timeout(200)
         ag = await pg.inner_text('#app')
@@ -199,7 +210,8 @@ async def main():
         await pg.wait_for_function('navigator.serviceWorker.controller !== null', timeout=10000)
         await ctx.set_offline(True)
         await pg.reload(); await pg.wait_for_selector('#testo', timeout=8000)
-        verifica('si riapre offline con i dati', 'Rossi' in await pg.inner_text('#lista-oggi'))
+        # textContent: legge anche le tendine chiuse (la via aperta ora è Via Verdi)
+        verifica('si riapre offline con i dati', 'Rossi' in await pg.evaluate("document.querySelector('#lista-oggi').textContent"))
         await ctx.set_offline(False)
 
         verifica('nessun errore JavaScript', not errori, errori)

@@ -5,6 +5,10 @@
 
 export const NOVITA = [
   {
+    versione: '1.6.1',
+    righe: ['Nei condomini, sotto ogni condominio trovi i suoi cognomi nell\'ordine in cui li hai dettati. Poi il condominio successivo.'],
+  },
+  {
     versione: '1.6.0',
     righe: [
       'Arriva la campanella: qui trovi gli aggiornamenti e cosa è cambiato.',

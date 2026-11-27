@@ -8,7 +8,7 @@ import { istantanea, differenze, messaggio } from './segnalazioni.js';
 import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
 import { novitaDaMostrare, nonLette } from './notifiche.js';
 
-const VERSIONE_APP = '1.6.0 (Step 1)';
+const VERSIONE_APP = '1.6.1 (Step 1)';
 const NUMERO_VERSIONE = VERSIONE_APP.split(' ')[0];
 
 const stato = {
@@ -215,7 +215,9 @@ function aggiornaGiro() {
           <span class="via-nome">${esc(g.via || 'Via non detta')}${n.daConfermare ? ' <span class="badge b-null">' + n.daConfermare + '</span>' : ''}</span>
           <span class="via-sotto">${esc([g.comune, conti].filter(Boolean).join(' · '))}</span>
         </summary>
-        <ul class="lista">${g.condomini.map((p) => rigaCondominio(p)).join('')}${g.contatti.map((c) => rigaContatto(c, c.civico ?? '–', { senzaIndirizzo: true })).join('')}</ul>
+        <ul class="lista">${g.righe.map((r) => (r.tipo === 'condominio'
+    ? rigaCondominio(r.posizione) + r.contatti.map((c) => rigaContatto(c, c.civico ?? '–', { senzaIndirizzo: true, nelCondominio: true })).join('')
+    : rigaContatto(r.contatto, r.contatto.civico ?? '–', { senzaIndirizzo: true }))).join('')}</ul>
       </details>`;
     }).join('')
     : '<p class="vuoto">Ancora nessun citofono oggi.</p>';
@@ -236,12 +238,12 @@ function indirizzo(c) {
   return [c.via ? c.via + civ : null, c.comune].filter(Boolean).join(', ');
 }
 
-function rigaContatto(c, sinistra, { senzaIndirizzo = false } = {}) {
+function rigaContatto(c, sinistra, { senzaIndirizzo = false, nelCondominio = false } = {}) {
   const quando = (c.esito === 'appuntamento' || c.esito === 'ripassare')
     ? (c.daFissare || !c.data ? 'da fissare' : `${dataBreve(c.data)}${c.ora ? ' ' + prefissoOra(c.oraTipo) + c.ora : ''}`)
     : '';
   const sotto = [quando, senzaIndirizzo ? null : indirizzo(c), c.note].filter(Boolean).join(' · ');
-  return `<li class="e-${c.esito}${c.confermato ? '' : ' da-confermare'}"><button data-id="${c.id}">
+  return `<li class="e-${c.esito}${c.confermato ? '' : ' da-confermare'}${nelCondominio ? ' in-condominio' : ''}"><button data-id="${c.id}">
       <span class="ora">${esc(sinistra)}</span>
       <span><span class="nome">${esc(c.identificativo || '?')}</span> <span class="badge b-${c.esito}">${ETICHETTA[c.esito]}</span>${c.confermato ? '' : ' <span class="badge b-null">da confermare</span>'}</span>
       <span class="sotto">${esc(sotto)}</span>

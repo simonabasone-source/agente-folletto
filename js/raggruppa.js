@@ -11,6 +11,30 @@ export const chiaveVia = (comune, via) => `${(comune ?? '').toLowerCase()}|${(vi
  * @returns {Array<{chiave, comune, via, contatti, conteggi:{citofoni, appuntamenti, ripassi, daConfermare}}>}
  *   vie ordinate dalla più recente; dentro ogni via, contatti per numero civico (poi per ora).
  */
+const perCivico = (a, b) => (numeroCivico(a.civico) - numeroCivico(b.civico))
+  || String(a.civico ?? '').localeCompare(String(b.civico ?? ''))
+  || (a.creato ?? '').localeCompare(b.creato ?? '');
+
+/**
+ * Ordine delle righe dentro una via (richiesta di Dani 27/11): ogni condominio è seguito
+ * dai SUOI cognomi nell'ordine in cui li ha dettati; poi il condominio successivo.
+ * Case singole al loro posto per numero civico.
+ * @returns {Array<{tipo:'condominio', posizione, contatti} | {tipo:'contatto', contatto}>}
+ */
+export function righeInOrdine(contatti, condomini) {
+  const ids = new Set(condomini.map((p) => p.id));
+  const blocchi = [
+    ...condomini.map((p) => ({
+      tipo: 'condominio', posizione: p, civico: p.civico, creato: p.creato,
+      contatti: contatti.filter((c) => c.condominioId === p.id).sort((a, b) => (a.creato ?? '').localeCompare(b.creato ?? '')),
+    })),
+    ...contatti.filter((c) => !(c.condominioId && ids.has(c.condominioId)))
+      .map((c) => ({ tipo: 'contatto', contatto: c, civico: c.civico, creato: c.creato })),
+  ];
+  blocchi.sort(perCivico);
+  return blocchi.map(({ civico, creato, ...b }) => b);
+}
+
 export function raggruppaPerVia(contatti, condomini = []) {
   const mappa = new Map();
   const gruppo = (x) => {
@@ -29,6 +53,7 @@ export function raggruppaPerVia(contatti, condomini = []) {
       || String(a.civico ?? '').localeCompare(String(b.civico ?? ''))
       || (a.creato ?? '').localeCompare(b.creato ?? ''));
     g.condomini.sort((a, b) => numeroCivico(a.civico) - numeroCivico(b.civico));
+    g.righe = righeInOrdine(g.contatti, g.condomini);
     g.conteggi = {
       citofoni: g.contatti.length,
       appuntamenti: g.contatti.filter((c) => c.esito === 'appuntamento').length,
