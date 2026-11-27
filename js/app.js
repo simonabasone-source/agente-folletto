@@ -8,7 +8,7 @@ import { istantanea, differenze, messaggio } from './segnalazioni.js';
 import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
 import { novitaDaMostrare, nonLette } from './notifiche.js';
 
-const VERSIONE_APP = '1.7.0 (Step 1)';
+const VERSIONE_APP = '1.7.1 (Step 1)';
 const NUMERO_VERSIONE = VERSIONE_APP.split(' ')[0];
 
 const stato = {
