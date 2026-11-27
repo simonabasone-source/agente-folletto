@@ -180,6 +180,13 @@ async def main():
         rientro = await pg.locator('#lista-oggi details.via:has(.via-nome:text-is("Via Verdi")) li.in-condominio').count()
         verifica('i cognomi del condominio sono rientrati sotto di esso', rientro == 4, rientro)
 
+        print('Numeri in lettere (caso di Dani 27/11)')
+        prima = int((await pg.inner_text('#contatori')).split('\n')[0])
+        aperta = await detta(pg, 'Civico tre condominio 12 Campanelli', conferma=False)
+        verifica('"Civico tre condominio 12 Campanelli" crea il condominio, senza scheda', not aperta)
+        verifica('i campanelli salgono di 12', int((await pg.inner_text('#contatori')).split('\n')[0]) == prima + 12)
+        verifica('la barra mostra il condominio civico 3', 'condominio civico 3 (12 campanelli)' in await pg.inner_text('#pos'))
+
         print('Agenda')
         await pg.click('#nav button[data-vista=agenda]'); await pg.wait_for_timeout(200)
         ag = await pg.inner_text('#app')

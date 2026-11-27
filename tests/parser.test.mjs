@@ -216,3 +216,34 @@ test('civico senza cognome resta "Civico N"', () => {
   assert.equal(uno('Civico 12 non interessato').identificativo, 'Civico 12');
   assert.equal(uno("Civico 8 ripassare dopo le 19").identificativo, 'Civico 8');
 });
+
+test('numeri scritti in lettere dalla tastiera (caso di Dani 27/11: "Civico tre condominio 12 Campanelli")', () => {
+  const p = uno('Civico tre condominio 12 Campanelli');
+  assert.equal(p.tipo, 'posizione');
+  assert.equal(p.sottotipo, 'condominio');
+  assert.equal(p.civico, '3');
+  assert.equal(p.campanelli, 12);
+  const q = uno('Civico ventotto condominio dodici campanelli');
+  assert.equal(q.civico, '28');
+  assert.equal(q.campanelli, 12);
+  const r = uno('civico tre Rossi assente');
+  assert.equal(r.identificativo, 'Rossi');
+  assert.equal(r.civico, '3');
+  const s = uno('Bianchi appuntamento domani alle sei e mezza');
+  assert.equal(s.ora, '18:30');
+  const d = uno('Verdi appuntamento il tre dicembre alle dieci');
+  assert.equal(d.data, '2026-12-03');
+  assert.equal(d.ora, '10:00');
+});
+
+test('le parole-numero fuori contesto non vengono toccate', () => {
+  const c = uno('Giovanardi appuntamento dicembre 23 richiamare una settimana prima');
+  assert.deepEqual(c.richiamo, { giorniPrima: 7, data: '2026-12-16' });
+  const n = uno('Rossi non interessato sei già cliente');
+  assert.match(n.note, /sei già cliente/);
+});
+
+test('"le due" in una nota resta in lettere', () => {
+  const c = uno('Rossi non interessato hanno le due figlie');
+  assert.match(c.note, /le due figlie/);
+});

@@ -5,6 +5,10 @@
 
 export const NOVITA = [
   {
+    versione: '1.7.1',
+    righe: ['Se la tastiera scrive i numeri in lettere ("civico tre", "dodici campanelli", "alle sei") l\'app ora li capisce.'],
+  },
+  {
     versione: '1.7.0',
     righe: ['L\'ultimo campanello suonato ora è in alto, il primo in fondo. Anche dentro i condomini.'],
   },
