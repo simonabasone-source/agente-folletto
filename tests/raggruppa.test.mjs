@@ -16,3 +16,12 @@ test('raggruppa per paese e via, civici in ordine di numero, via più recente pr
   assert.deepEqual(g[1].conteggi, { citofoni: 3, appuntamenti: 1, ripassi: 1, daConfermare: 1 });
   assert.equal(g[1].chiave, chiaveVia('Carpaneto', 'Via Roma'));
 });
+
+test('un condominio senza cognomi crea comunque la sua tendina (caso di Dani 27/11)', () => {
+  const condomini = [{ id: 'p1', comune: null, via: null, civico: '30', campanelli: 12, creato: '2026-11-27T09:00' }];
+  const g = raggruppaPerVia([], condomini);
+  assert.equal(g.length, 1);
+  assert.equal(g[0].via, null);
+  assert.deepEqual(g[0].condomini.map((p) => p.id), ['p1']);
+  assert.equal(g[0].conteggi.citofoni, 0);
+});

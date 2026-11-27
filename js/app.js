@@ -7,7 +7,7 @@ import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './ag
 import { istantanea, differenze, messaggio } from './segnalazioni.js';
 import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
 
-const VERSIONE_APP = '1.4.0 (Step 1)';
+const VERSIONE_APP = '1.5.0 (Step 1)';
 
 const stato = {
   vista: 'giro',
@@ -68,8 +68,8 @@ function render() {
 // ---------------------------------------------------------------- giro
 function testoPosizione() {
   const { comune, via, civico, condominio } = stato.ctx;
-  if (!comune && !via) return 'Tocca per impostare paese e via';
-  let t = [via, comune].filter(Boolean).join(' · ');
+  if (!comune && !via && !condominio && !civico) return 'Tocca per impostare paese e via';
+  let t = [via, comune].filter(Boolean).join(' · ') || 'Via non detta';
   if (condominio) t += ` · condominio civico ${condominio.civico} (${condominio.campanelli ?? '?'} campanelli)`;
   else if (civico) t += ` · civico ${civico}`;
   return t;
@@ -112,22 +112,33 @@ function aggiornaGiro() {
   $('#dettaglio-num').innerHTML = stato.dettaglioNumeri
     ? `<div class="dettaglio-num">Parlato con <b>${s.parlati}</b> · Assenti <b>${s.assenti}</b>${s.daConfermare ? ` · <span style="color:var(--rosso)">Da confermare <b>${s.daConfermare}</b></span>` : ''}</div>`
     : '';
-  const gruppi = raggruppaPerVia(stato.contatti.filter((c) => c.giorno === oggi()));
+  const condominiOggi = stato.posizioni.filter((p) => p.giorno === oggi() && p.sottotipo === 'condominio');
+  const gruppi = raggruppaPerVia(stato.contatti.filter((c) => c.giorno === oggi()), condominiOggi);
   const qui = chiaveVia(stato.ctx.comune, stato.ctx.via);
   $('#lista-oggi').innerHTML = gruppi.length
     ? gruppi.map((g) => {
       const aperta = stato.tendine[g.chiave] ?? (g.chiave === qui);
       const n = g.conteggi;
-      const conti = [`${n.citofoni} citofoni`, n.appuntamenti && `${n.appuntamenti} app.`, n.ripassi && `${n.ripassi} rip.`].filter(Boolean).join(' · ');
+      const conti = [`${n.citofoni} citofoni`, g.condomini.length && `${g.condomini.length} condomini`, n.appuntamenti && `${n.appuntamenti} app.`, n.ripassi && `${n.ripassi} rip.`].filter(Boolean).join(' · ');
       return `<details class="via" data-chiave="${esc(g.chiave)}" ${aperta ? 'open' : ''}>
         <summary>
           <span class="via-nome">${esc(g.via || 'Via non detta')}${n.daConfermare ? ' <span class="badge b-null">' + n.daConfermare + '</span>' : ''}</span>
           <span class="via-sotto">${esc([g.comune, conti].filter(Boolean).join(' · '))}</span>
         </summary>
-        <ul class="lista">${g.contatti.map((c) => rigaContatto(c, c.civico ?? '–', { senzaIndirizzo: true })).join('')}</ul>
+        <ul class="lista">${g.condomini.map((p) => rigaCondominio(p)).join('')}${g.contatti.map((c) => rigaContatto(c, c.civico ?? '–', { senzaIndirizzo: true })).join('')}</ul>
       </details>`;
     }).join('')
     : '<p class="vuoto">Ancora nessun citofono oggi.</p>';
+}
+
+function rigaCondominio(p) {
+  const dentro = stato.contatti.filter((c) => c.condominioId === p.id).length;
+  const tot = Math.max(p.campanelli ?? 0, dentro);
+  return `<li class="condominio"><button data-condo="${p.id}">
+      <span class="ora">${esc(p.civico ?? '–')}</span>
+      <span><span class="nome">Condominio · ${tot} campanelli</span></span>
+      <span class="sotto">${dentro} con esito · ${tot - dentro} assenti — tocca per correggere o eliminare</span>
+    </button></li>`;
 }
 
 function indirizzo(c) {
@@ -153,6 +164,8 @@ function collegaListe() {
     // ricorda quali tendine Dani ha aperto o chiuso con un tocco
     const sum = e.target.closest('details.via > summary');
     if (sum) { const d = sum.parentElement; stato.tendine[d.dataset.chiave] = !d.open; return; }
+    const bc = e.target.closest('.lista button[data-condo]');
+    if (bc) { modificaCondominio(bc.dataset.condo); return; }
     const b = e.target.closest('.lista button[data-id]');
     if (!b) return;
     const c = stato.contatti.find((x) => x.id === b.dataset.id);
@@ -551,6 +564,61 @@ function modificaPosizione() {
     d.remove();
   });
   d.showModal();
+}
+
+// ---------------------------------------------------------------- condominio: correggere o eliminare
+function modificaCondominio(id) {
+  const p = stato.posizioni.find((x) => x.id === id);
+  if (!p) return;
+  const dentro = stato.contatti.filter((c) => c.condominioId === id);
+  const d = document.createElement('dialog');
+  d.className = 'dialog-condo';
+  d.innerHTML = `
+    <form method="dialog">
+      <p class="via-nome" style="margin:0 4px 8px">Condominio civico ${esc(p.civico ?? '?')}</p>
+      <p class="nota">${esc([p.via, p.comune].filter(Boolean).join(', ') || 'Via non detta')} · ${dentro.length} con esito</p>
+      <label class="campo"><span>Campanelli suonati davvero</span><input name="campanelli" inputmode="numeric" value="${esc(p.campanelli ?? '')}"></label>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button value="salva" class="conferma" style="flex:2">Salva</button>
+        <button value="annulla" class="secondario" style="flex:1">Chiudi</button>
+      </div>
+      <button type="button" class="elimina" id="c-elimina" style="width:100%;margin-top:12px">Elimina condominio</button>
+      <p class="nota">Eliminandolo, i campanelli non contano più. ${dentro.length ? 'I cognomi dettati lì restano, come case singole.' : ''}</p>
+    </form>`;
+  document.body.appendChild(d);
+  let armato = false;
+  d.querySelector('#c-elimina').addEventListener('click', async (e) => {
+    if (!armato) { armato = true; e.target.textContent = 'Sicuro? Tocca di nuovo'; return; }
+    await eliminaCondominio(id);
+    d.close('eliminato');
+  });
+  d.addEventListener('close', async () => {
+    if (d.returnValue === 'salva') {
+      const n = parseInt(new FormData(d.querySelector('form')).get('campanelli'), 10);
+      if (Number.isFinite(n) && n >= 0) {
+        p.campanelli = n;
+        await db.metti('posizioni', p);
+        if (stato.ctx.condominio?.id === id) { stato.ctx.condominio = { ...stato.ctx.condominio, campanelli: n }; await db.scriviMeta('ctx', stato.ctx); }
+      }
+    }
+    d.remove();
+    render();
+  });
+  d.showModal();
+}
+
+async function eliminaCondominio(id) {
+  await db.togli('posizioni', id);
+  stato.posizioni = stato.posizioni.filter((p) => p.id !== id);
+  for (const c of stato.contatti.filter((x) => x.condominioId === id)) {
+    c.condominioId = null;
+    await db.metti('contatti', c);
+  }
+  if (stato.ctx.condominio?.id === id) {
+    stato.ctx = { ...stato.ctx, condominio: null };
+    await db.scriviMeta('ctx', stato.ctx);
+  }
+  toast('Condominio eliminato.');
 }
 
 // ---------------------------------------------------------------- toast

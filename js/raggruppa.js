@@ -11,20 +11,24 @@ export const chiaveVia = (comune, via) => `${(comune ?? '').toLowerCase()}|${(vi
  * @returns {Array<{chiave, comune, via, contatti, conteggi:{citofoni, appuntamenti, ripassi, daConfermare}}>}
  *   vie ordinate dalla più recente; dentro ogni via, contatti per numero civico (poi per ora).
  */
-export function raggruppaPerVia(contatti) {
+export function raggruppaPerVia(contatti, condomini = []) {
   const mappa = new Map();
-  for (const c of contatti) {
-    const k = chiaveVia(c.comune, c.via);
-    if (!mappa.has(k)) mappa.set(k, { chiave: k, comune: c.comune ?? null, via: c.via ?? null, contatti: [], ultimo: '' });
+  const gruppo = (x) => {
+    const k = chiaveVia(x.comune, x.via);
+    if (!mappa.has(k)) mappa.set(k, { chiave: k, comune: x.comune ?? null, via: x.via ?? null, contatti: [], condomini: [], ultimo: '' });
     const g = mappa.get(k);
-    g.contatti.push(c);
-    if ((c.creato ?? '') > g.ultimo) g.ultimo = c.creato ?? '';
-  }
+    if ((x.creato ?? '') > g.ultimo) g.ultimo = x.creato ?? '';
+    return g;
+  };
+  for (const c of contatti) gruppo(c).contatti.push(c);
+  // i condomini compaiono come righe da toccare (per correggere i campanelli o eliminarli)
+  for (const p of condomini) gruppo(p).condomini.push(p);
   const gruppi = [...mappa.values()];
   for (const g of gruppi) {
     g.contatti.sort((a, b) => (numeroCivico(a.civico) - numeroCivico(b.civico))
       || String(a.civico ?? '').localeCompare(String(b.civico ?? ''))
       || (a.creato ?? '').localeCompare(b.creato ?? ''));
+    g.condomini.sort((a, b) => numeroCivico(a.civico) - numeroCivico(b.civico));
     g.conteggi = {
       citofoni: g.contatti.length,
       appuntamenti: g.contatti.filter((c) => c.esito === 'appuntamento').length,

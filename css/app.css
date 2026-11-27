@@ -127,6 +127,10 @@ details.via .lista { padding: 8px; }
 details.via .lista li { margin-bottom: 6px; }
 details.via .lista .ora { font-size: 1.25rem; }
 
+/* riga del condominio nella tendina */
+.lista li.condominio { background: #fff8e1; border: 1px dashed #c9a227; }
+.lista li.condominio .nome { color: #6b5200; }
+
 /* colori delle righe per esito (scelti da Dani): assente bianco, ripassare azzurro chiaro, non interessato grigio */
 .lista li.e-assente { background: #ffffff; }
 .lista li.e-ripassare { background: #dbeefc; border-color: #9fcbee; }

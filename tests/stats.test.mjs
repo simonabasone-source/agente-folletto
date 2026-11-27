@@ -45,3 +45,23 @@ test('sovrapposizioni entro un\'ora', () => {
   const nuovo = { id: 'n', esito: 'appuntamento', data: '2026-12-04', ora: '15:30' };
   assert.deepEqual(sovrapposizioni(nuovo, tutti).map((c) => c.id), ['x']);
 });
+
+test('condominio eliminato: i suoi contatti contano come case singole', () => {
+  const contatti = [
+    { id: 'a', giorno: G, esito: 'non_interessato', confermato: true, condominioId: 'eliminato' },
+    { id: 'b', giorno: G, esito: 'assente', confermato: true },
+  ];
+  const s = statistiche([], contatti, G);
+  assert.equal(s.campanelli, 2);
+  assert.equal(s.assenti, 1);
+});
+
+test('due condomini da 12 senza nessun cognome = 24 campanelli, 24 assenti', () => {
+  const posizioni = [
+    { id: 'p1', giorno: G, sottotipo: 'condominio', campanelli: 12 },
+    { id: 'p2', giorno: G, sottotipo: 'condominio', campanelli: 12 },
+  ];
+  const s = statistiche(posizioni, [], G);
+  assert.equal(s.campanelli, 24);
+  assert.equal(s.assenti, 24);
+});
