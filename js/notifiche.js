@@ -5,6 +5,14 @@
 
 export const NOVITA = [
   {
+    versione: '1.8.0',
+    righe: [
+      'Puoi aggiornare un cliente a voce: ridetta civico e cognome con il nuovo esito (es. "Civico 12 Bisotti appuntamento sabato alle 10"). L\'app aggiorna quello già in lista, senza doppioni.',
+      'Se oggi ci sono due clienti con lo stesso cognome e civico, l\'app ti chiede quale.',
+      'I cognomi in più parti (es. "Boselli Terret") si salvano senza chiederti conferma.',
+    ],
+  },
+  {
     versione: '1.7.4',
     righe: [
       'Frasi da mandare a Simona: se sono tante, l\'app le divide in più messaggi. Tocca le parti una alla volta.',
