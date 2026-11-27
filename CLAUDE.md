@@ -27,7 +27,8 @@ Servono entrambi: un guasto nel parser lo vede `npm test`, un tasto che non risp
 ## Rilascio
 - Lavorare su un ramo, aprire una PR verso `main`, unirla solo con i test verdi.
 - Aggiornare `VERSIONE` in `sw.js` (e l'elenco `FILE` se si aggiungono file) e `VERSIONE_APP` in `js/app.js`.
-- Dopo l'unione GitHub Pages pubblica in 1–2 minuti; sul telefono compare "Aggiorna".
+- Aggiungere in cima a `NOVITA` in `js/notifiche.js` 1–3 righe semplici per Dani su cosa cambia: compaiono nella campanella dopo l'aggiornamento.
+- Dopo l'unione GitHub Pages pubblica in 1–2 minuti; sul telefono la campanella diventa gialla con "Nuova versione pronta" (controllo ogni 15 minuti e quando Dani riprende il telefono).
 
 ## Vincoli dell'app
 - Funziona offline, dati solo sul telefono (IndexedDB), nessuna libreria esterna, nessuna compilazione.
