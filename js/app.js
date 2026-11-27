@@ -6,8 +6,10 @@ import { statistiche } from './stats.js';
 import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './agenda.js';
 import { istantanea, differenze, messaggio } from './segnalazioni.js';
 import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
+import { novitaDaMostrare, nonLette } from './notifiche.js';
 
-const VERSIONE_APP = '1.5.0 (Step 1)';
+const VERSIONE_APP = '1.6.0 (Step 1)';
+const NUMERO_VERSIONE = VERSIONE_APP.split(' ')[0];
 
 const stato = {
   vista: 'giro',
@@ -18,6 +20,7 @@ const stato = {
   coda: [],
   dettaglioNumeri: false,
   tendine: {}, // chiave via -> aperta/chiusa scelta da Dani
+  notifiche: [], // campanella: {id, tipo, titolo, righe, quando, letta}
   protetto: false,
 };
 
@@ -37,17 +40,99 @@ async function avvio() {
   stato.protetto = await db.proteggiArchivio();
 
   document.querySelectorAll('#nav button').forEach((b) => b.addEventListener('click', () => vai(b.dataset.vista)));
+  stato.notifiche = await db.leggiMeta('notifiche', []);
+  await registraNovita();
   collegaListe();
   render();
+  ripristinaBozzaDettatura();
 
   if ('serviceWorker' in navigator) {
     const avevaVersione = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.register('sw.js').then((reg) => reg.update()).catch(() => {});
-    // nuova versione installata: proponi di ricaricare (mai in automatico, per non perdere una dettatura)
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (avevaVersione) toast('È arrivata una versione nuova dell\'app.', () => location.reload(), 'Aggiorna');
-    });
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      reg.update();
+      // controlla gli aggiornamenti ogni 15 minuti e ogni volta che Dani riprende in mano il telefono
+      setInterval(() => reg.update().catch(() => {}), 15 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+    }).catch(() => {});
+    // nuova versione installata: notifica nella campanella (mai ricarica automatica)
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (avevaVersione) segnalaAggiornamento(); });
   }
+  window.__folletto = { segnalaAggiornamento }; // usato dalle prove automatiche
+}
+
+// ---------------------------------------------------------------- campanella
+async function salvaNotifiche() {
+  stato.notifiche = stato.notifiche.slice(0, 30);
+  await db.scriviMeta('notifiche', stato.notifiche);
+  disegnaCampanella();
+}
+
+async function registraNovita() {
+  const vista = await db.leggiMeta('ultimaVersioneVista', null);
+  const nuove = novitaDaMostrare(vista, NUMERO_VERSIONE);
+  for (const n of nuove.reverse()) {
+    stato.notifiche.unshift({ id: db.nuovoId(), tipo: 'novita', titolo: `Novità della versione ${n.versione}`, righe: n.righe, quando: new Date().toISOString(), letta: false });
+  }
+  // l'aggiornamento è avvenuto: la notifica "versione pronta" non serve più
+  stato.notifiche = stato.notifiche.filter((n) => n.tipo !== 'aggiornamento');
+  await db.scriviMeta('ultimaVersioneVista', NUMERO_VERSIONE);
+  await db.scriviMeta('notifiche', stato.notifiche);
+}
+
+async function segnalaAggiornamento() {
+  if (stato.notifiche.some((n) => n.tipo === 'aggiornamento')) return;
+  stato.notifiche.unshift({ id: db.nuovoId(), tipo: 'aggiornamento', titolo: 'Nuova versione pronta', righe: ['Tocca Aggiorna quando sei tra un citofono e l\'altro.'], quando: new Date().toISOString(), letta: false });
+  await salvaNotifiche();
+}
+
+function disegnaCampanella() {
+  const b = $('#campanella');
+  if (!b) return;
+  const n = nonLette(stato.notifiche);
+  const pronta = stato.notifiche.some((x) => x.tipo === 'aggiornamento');
+  b.classList.toggle('pronta', pronta);
+  b.innerHTML = `<span aria-hidden="true">🔔</span>${n ? `<span class="pallino">${n}</span>` : ''}`;
+  b.setAttribute('aria-label', n ? `Notifiche: ${n} nuove` : 'Notifiche');
+}
+
+function apriNotifiche() {
+  const p = $('#pannello-notifiche');
+  const lista = stato.notifiche;
+  p.innerHTML = `
+    <div class="contenuto">
+      <div class="testata"><b>Notifiche</b><button type="button" class="secondario" id="n-chiudi">Chiudi</button></div>
+      ${lista.length ? lista.map((n) => `
+        <div class="notifica ${n.letta ? '' : 'nuova'} n-${n.tipo}">
+          <div class="titolo">${esc(n.titolo)}</div>
+          ${n.righe.map((r) => `<p>${esc(r)}</p>`).join('')}
+          <div class="n-ora">${esc(dataBreve(isoDate(new Date(n.quando))))} ${esc(isoTime(new Date(n.quando)))}</div>
+          ${n.tipo === 'aggiornamento' ? '<button type="button" class="conferma" id="n-aggiorna">Aggiorna</button>' : ''}
+        </div>`).join('') : '<p class="vuoto">Nessuna notifica.</p>'}
+    </div>`;
+  p.hidden = false;
+  $('#n-chiudi').addEventListener('click', chiudiNotifiche);
+  $('#n-aggiorna')?.addEventListener('click', aggiornaOra);
+  stato.notifiche = stato.notifiche.map((n) => ({ ...n, letta: true }));
+  salvaNotifiche();
+}
+
+function chiudiNotifiche() {
+  $('#pannello-notifiche').hidden = true;
+  $('#pannello-notifiche').innerHTML = '';
+}
+
+// Ricarica conservando quello che Dani stava dettando.
+function aggiornaOra() {
+  const testo = $('#testo')?.value ?? '';
+  try { if (testo.trim()) sessionStorage.setItem('bozzaDettatura', testo); } catch { /* niente */ }
+  location.reload();
+}
+
+function ripristinaBozzaDettatura() {
+  try {
+    const t = sessionStorage.getItem('bozzaDettatura');
+    if (t && $('#testo')) { $('#testo').value = t; sessionStorage.removeItem('bozzaDettatura'); }
+  } catch { /* niente */ }
 }
 
 function vai(vista) {
@@ -77,7 +162,10 @@ function testoPosizione() {
 
 function htmlGiro() {
   return `
-    <button class="posizione" id="btn-pos"><small>Sei in</small><strong id="pos"></strong></button>
+    <div class="testata-giro">
+      <button class="posizione" id="btn-pos"><small>Sei in</small><strong id="pos"></strong></button>
+      <button class="campanella" id="campanella" type="button" aria-label="Notifiche"></button>
+    </div>
     <div class="contatori" id="contatori"></div>
     <div id="dettaglio-num"></div>
     <div class="dettatura">
@@ -97,6 +185,8 @@ function collegaGiro() {
   $('#svuota').addEventListener('click', () => { $('#testo').value = ''; $('#testo').focus(); });
   $('#testo').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); invia(); } });
   $('#btn-pos').addEventListener('click', modificaPosizione);
+  $('#campanella').addEventListener('click', apriNotifiche);
+  disegnaCampanella();
   $('#contatori').addEventListener('click', () => { stato.dettaglioNumeri = !stato.dettaglioNumeri; aggiornaGiro(); });
 }
 
