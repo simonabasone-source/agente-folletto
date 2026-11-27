@@ -292,3 +292,15 @@ test('con un esito resta un contatto, anche se si parla di condominio', () => {
   assert.equal(c.identificativo, 'Rossi');
   assert.equal(c.esito, 'non_interessato');
 });
+
+test('"Neri baccianella assent" (la tastiera ha tagliato la e — Dani 27/11)', () => {
+  const c = uno('Neri baccianella assent', { via: 'Via Roma' });
+  assert.equal(c.tipo, 'contatto');
+  assert.equal(c.esito, 'assente');
+  assert.equal(c.identificativo.toLowerCase(), 'neri baccianella');
+});
+
+test('"assent" non tocca parole più lunghe', () => {
+  const c = uno('Rossi assentarsi non interessato', { via: 'Via Roma' });
+  assert.equal(c.esito, 'non_interessato');
+});

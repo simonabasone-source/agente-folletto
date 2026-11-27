@@ -14,13 +14,13 @@ const R = (src, flags = 'iu') => new RegExp(src.replace(/\\b/g, WB), flags);
 const RE_NON_INT = R("\\bnon\\s+(?:(?:è|e|era|sono|erano)\\s+)?interessat[aoie]\\b|\\bnon\\s+(?:gli|le)\\s+interessa\\b|\\bnon\\s+vuol(?:e|ono)\\b|\\bnon\\s+vogliono\\b");
 const RE_APP = R('\\bappuntament[oi]\\b|\\bfissat[oa]\\s+(?:per|il|alle|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|domani|oggi)\\b');
 const RE_RIP = R('\\b(?:ri)?passare\\b|\\bripass(?:o|a|i)\\b|\\b(?:ri)?tornare\\b|\\brichiamare\\b|\\brisentir(?:ci|si)\\b');
-const RE_ASS = R("\\bassent[ei]\\b|\\bnon\\s+c'è\\s+nessuno\\b|\\bnessuno\\b|\\bnon\\s+rispond(?:e|ono)\\b");
+const RE_ASS = R("\\bassent[ei]?\\b|\\bnon\\s+c'è\\s+nessuno\\b|\\bnessuno\\b|\\bnon\\s+rispond(?:e|ono)\\b");
 
 // parole che chiudono il cognome ("Mitev marito ha detto..." -> "Mitev")
 const STOP = new Set(['marito', 'moglie', 'figlio', 'figlia', 'figli', 'signora', 'signore', 'signor', 'sig',
   'mamma', 'papà', 'nonna', 'nonno', "c'era", "c'è", 'ha', 'hanno', 'dice', 'dicono', 'detto', 'era',
   'erano', 'solo', 'non', 'cliente', 'già', 'gia', 'però', 'pero', 'anche', 'oggi', 'domani',
-  'appuntamento', 'assente', 'assenti', 'ripassare', 'passare']);
+  'appuntamento', 'assente', 'assenti', 'assent', 'ripassare', 'passare']);
 
 // ---------- dettagli ----------
 const CONCORRENTI = ['dyson', 'rowenta', 'kirby', 'hoover', 'miele', 'kärcher', 'karcher', 'roomba', 'irobot',

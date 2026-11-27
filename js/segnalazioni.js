@@ -22,7 +22,9 @@ export function differenze(letto, finale) {
   if (!letto) return [];
   const d = [];
   if ((letto.identificativo ?? '').trim().toLowerCase() !== (finale.identificativo ?? '').trim().toLowerCase()) d.push('cognome');
-  if (letto.esito !== finale.esito) d.push('esito');
+  // Dani segna "assente" quando suona e cambia l'esito dopo aver parlato col cliente (spiegato da Dani 27/11):
+  // assente → altro esito è un aggiornamento, non un errore dell'app.
+  if (letto.esito !== finale.esito && letto.esito !== 'assente') d.push('esito');
   if (conData(finale.esito) && conData(letto.esito)) {
     if (!!letto.daFissare !== !!finale.daFissare || (!finale.daFissare && letto.data !== finale.data)) d.push('giorno');
     if (letto.ora !== finale.ora) d.push('ora');
@@ -39,15 +41,39 @@ function descrivi(v) {
   return parti.join(' · ');
 }
 
+function blocco(c, n) {
+  const righe = [`${n}) «${c.testoOriginale}»`];
+  const quando = c.creato ? new Date(c.creato) : null;
+  if (quando) righe.push(`   Dettata: ${dataBreve(c.giorno ?? '')} ${isoTime(quando)}`.replace(':  ', ': '));
+  righe.push(`   App:  ${descrivi(c.letto)}`);
+  righe.push(`   Dani: ${descrivi(c)}`);
+  return righe.join('\n');
+}
+
 export function messaggio(contatti) {
   const righe = [`Frasi da correggere — app Folletto (${contatti.length})`, ''];
-  contatti.forEach((c, i) => {
-    righe.push(`${i + 1}) «${c.testoOriginale}»`);
-    const quando = c.creato ? new Date(c.creato) : null;
-    if (quando) righe.push(`   Dettata: ${dataBreve(c.giorno ?? '')} ${isoTime(quando)}`.replace(':  ', ': '));
-    righe.push(`   App:  ${descrivi(c.letto)}`);
-    righe.push(`   Dani: ${descrivi(c)}`);
-    righe.push('');
-  });
+  contatti.forEach((c, i) => { righe.push(blocco(c, i + 1)); righe.push(''); });
   return righe.join('\n').trim();
+}
+
+// WhatsApp tronca i testi lunghi (il 27/11 su 79 frasi ne sono arrivate 30 e mezza, ~4000 caratteri):
+// si divide in parti che stanno sotto il limite, senza mai spezzare una frase.
+export const MAX_PARTE = 3000;
+
+export function parti(contatti, max = MAX_PARTE) {
+  const gruppi = [];
+  const spazio = max - 80; // riga del titolo ("… (79) · parte 1 di 3") e a capo
+  let corrente = [], lung = 0;
+  contatti.forEach((c, i) => {
+    const l = blocco(c, i + 1).length + 2;
+    if (corrente.length && lung + l > spazio) { gruppi.push(corrente); corrente = []; lung = 0; }
+    corrente.push({ c, n: i + 1 }); lung += l;
+  });
+  if (corrente.length) gruppi.push(corrente);
+  const tot = gruppi.length;
+  return gruppi.map((g, k) => {
+    const titolo = `Frasi da correggere — app Folletto (${contatti.length})` + (tot > 1 ? ` · parte ${k + 1} di ${tot}` : '');
+    const testo = [titolo, '', ...g.flatMap(({ c, n }) => [blocco(c, n), ''])].join('\n').trim();
+    return { testo, contatti: g.map(({ c }) => c), da: g[0].n, a: g[g.length - 1].n };
+  });
 }

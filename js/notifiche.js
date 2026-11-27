@@ -5,6 +5,14 @@
 
 export const NOVITA = [
   {
+    versione: '1.7.4',
+    righe: [
+      'Frasi da mandare a Simona: se sono tante, l\'app le divide in più messaggi. Tocca le parti una alla volta.',
+      'Nel Menu c\'è "Rimetti in elenco le frasi già mandate": toccalo una volta e rimanda a Simona quelle di oggi.',
+      'Quando cambi "assente" in non interessato, appuntamento o ripassare dopo aver parlato col cliente, non finisce più tra le frasi da mandare a Simona.',
+    ],
+  },
+  {
     versione: '1.7.3',
     righe: ['Quando correggi una riga della lista e confermi, resti nello stesso punto: niente più ritorno in cima e niente tastiera.'],
   },
