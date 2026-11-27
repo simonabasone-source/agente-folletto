@@ -203,14 +203,15 @@ async def main():
         print('Frasi da mandare a Simona')
         await pg.click('#nav button[data-vista=menu]'); await pg.wait_for_timeout(200)
         etichetta = await pg.inner_text('#m-segnala')
-        verifica('contate le correzioni (Contardi, Verdi)', '(2)' in etichetta, etichetta)
+        verifica('contata solo Contardi: Verdi da assente a non interessato è un aggiornamento di Dani, non un errore', '(1)' in etichetta, etichetta)
         await pg.click('#m-segnala'); await pg.wait_for_timeout(300)
         testo = await pg.evaluate('window.__condiviso') or ''
-        verifica('messaggio con frase originale e correzione', '«Civico 3 Verdi assente»' in testo and 'Dani: Verdi · non interessato' in testo, testo)
+        verifica('messaggio con frase originale e correzione', 'Dani: Contardi' in testo and '«' in testo, testo)
+        verifica('Verdi (assente → non interessato) non è nel messaggio', 'Verdi' not in testo, testo)
         verifica('elenco svuotato dopo l\'invio', '(0)' in await pg.inner_text('#m-segnala'))
-        verifica('compare il tasto per rimettere in elenco le frasi già mandate', '(2)' in await pg.inner_text('#m-rimetti'))
+        verifica('compare il tasto per rimettere in elenco le frasi già mandate', '(1)' in await pg.inner_text('#m-rimetti'))
         await pg.click('#m-rimetti'); await pg.wait_for_timeout(300)
-        verifica('le frasi già mandate tornano in elenco (caso 27/11: perse 49 frasi)', '(2)' in await pg.inner_text('#m-segnala'))
+        verifica('le frasi già mandate tornano in elenco (caso 27/11: perse 49 frasi)', '(1)' in await pg.inner_text('#m-segnala'))
         await pg.click('#m-segnala'); await pg.wait_for_timeout(300)
         verifica('rimandate: elenco di nuovo vuoto', '(0)' in await pg.inner_text('#m-segnala'))
 
@@ -241,7 +242,7 @@ async def main():
         print('Tante frasi: si mandano in più parti (caso di Dani 27/11: 79 frasi, arrivate 30)')
         await pg.evaluate("""(() => { const st = window.__folletto.stato; st.contatti.forEach((c) => {
             c.testoOriginale = (c.testoOriginale || 'frase') + ' ' + 'x'.repeat(60);
-            c.letto = { identificativo: c.identificativo, esito: 'assente' }; c.segnalazione = { campi: ['esito'], inviata: false }; }); })()""")
+            c.letto = { identificativo: c.identificativo + ' x', esito: c.esito }; c.segnalazione = { campi: ['cognome'], inviata: false }; }); })()""")
         await pg.click('#nav button[data-vista=menu]'); await pg.wait_for_timeout(200)
         n_frasi = int((await pg.inner_text('#m-segnala')).split('(')[1].split(')')[0])
         await pg.click('#m-segnala'); await pg.wait_for_timeout(300)

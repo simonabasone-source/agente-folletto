@@ -10,6 +10,7 @@ export const NOVITA = [
       'Frasi da mandare a Simona: se sono tante, l\'app le divide in più messaggi. Tocca le parti una alla volta.',
       'Nel Menu c\'è "Rimetti in elenco le frasi già mandate": toccalo una volta e rimanda a Simona quelle di oggi.',
       '"assent" (con la e tagliata dalla tastiera) ora vale come assente.',
+      'Quando cambi "assente" in non interessato, appuntamento o ripassare dopo aver parlato col cliente, non finisce più tra le frasi da mandare a Simona.',
     ],
   },
   {

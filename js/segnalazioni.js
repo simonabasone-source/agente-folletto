@@ -22,7 +22,9 @@ export function differenze(letto, finale) {
   if (!letto) return [];
   const d = [];
   if ((letto.identificativo ?? '').trim().toLowerCase() !== (finale.identificativo ?? '').trim().toLowerCase()) d.push('cognome');
-  if (letto.esito !== finale.esito) d.push('esito');
+  // Dani segna "assente" quando suona e cambia l'esito dopo aver parlato col cliente (spiegato da Dani 27/11):
+  // assente → altro esito è un aggiornamento, non un errore dell'app.
+  if (letto.esito !== finale.esito && letto.esito !== 'assente') d.push('esito');
   if (conData(finale.esito) && conData(letto.esito)) {
     if (!!letto.daFissare !== !!finale.daFissare || (!finale.daFissare && letto.data !== finale.data)) d.push('giorno');
     if (letto.ora !== finale.ora) d.push('ora');

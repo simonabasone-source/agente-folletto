@@ -13,9 +13,25 @@ test('rileva cognome, giorno e ora cambiati', () => {
   assert.deepEqual(differenze(letto, finale), ['cognome', 'giorno', 'ora']);
 });
 
-test('rileva esito cambiato (frase salvata da sola e poi corretta)', () => {
-  const l = istantanea({ identificativo: 'Rossi', esito: 'assente' });
-  assert.deepEqual(differenze(l, { identificativo: 'Rossi', esito: 'non_interessato' }), ['esito']);
+test('da assente a un altro esito NON è un errore: Dani aggiorna dopo aver parlato col cliente (27/11)', () => {
+  // frasi esatte del 27/11: «Sant'Angelo assente» → non interessato, «Bisotti assente» → appuntamento sab 28 nov 10:00
+  const l = istantanea({ identificativo: "Sant'Angelo", esito: 'assente' });
+  assert.deepEqual(differenze(l, { identificativo: "Sant'Angelo", esito: 'non_interessato' }), []);
+  const b = istantanea({ identificativo: 'Bisotti', esito: 'assente' });
+  assert.deepEqual(differenze(b, { identificativo: 'Bisotti', esito: 'appuntamento', data: '2026-11-28', ora: '10:00' }), []);
+});
+
+test('assente con cognome sbagliato: resta segnalato solo il cognome («Da Getty assente» → Daghetti)', () => {
+  const l = istantanea({ identificativo: 'Da Getty', esito: 'assente' });
+  assert.deepEqual(differenze(l, { identificativo: 'Daghetti', esito: 'assente' }), ['cognome']);
+  assert.deepEqual(differenze(l, { identificativo: 'Daghetti', esito: 'non_interessato' }), ['cognome']);
+});
+
+test('esito capito male resta segnalato (es. non interessato → ripassare, esito non capito → assente)', () => {
+  const l = istantanea({ identificativo: 'Rossi', esito: 'non_interessato' });
+  assert.deepEqual(differenze(l, { identificativo: 'Rossi', esito: 'ripassare', daFissare: true }), ['esito']);
+  const n = istantanea({ identificativo: 'Neri Baccianella Assent', esito: null });
+  assert.deepEqual(differenze(n, { identificativo: 'Neri Baccianella', esito: 'assente' }), ['cognome', 'esito']);
 });
 
 test('il messaggio contiene frase originale, versione app e versione Dani', () => {

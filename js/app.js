@@ -571,12 +571,12 @@ function htmlMenu() {
 
 function daSegnalare() {
   return stato.contatti
-    .filter((c) => c.segnalazione && !c.segnalazione.inviata)
+    .filter((c) => c.segnalazione && !c.segnalazione.inviata && differenze(c.letto, c).length)
     .sort((a, b) => a.creato.localeCompare(b.creato));
 }
 
 function giaInviate() {
-  return stato.contatti.filter((c) => c.segnalazione?.inviata);
+  return stato.contatti.filter((c) => c.segnalazione?.inviata && differenze(c.letto, c).length);
 }
 
 async function segnaInviate(lista, inviata = true) {
