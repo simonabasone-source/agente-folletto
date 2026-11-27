@@ -271,8 +271,9 @@ function parseContatto(testoIntero, idPrefisso, ctx, now) {
     const fine = trovaIdentificativo(testoIntero, match ? match.index : -1);
     identificativo = capitalizza(testoIntero.slice(0, fine).trim());
     inizioBody = fine;
+    // niente più avviso "cognome spezzato?": Dani preferisce i cognomi in più parti senza conferma
+    // e corregge da solo quelli che servono (27/11)
     if (!identificativo) avvisi.push('Non ho capito il cognome.');
-    else if (identificativo.split(' ').length > 1) avvisi.push(`Cognome "${identificativo}": controlla che non sia spezzato.`);
   }
   const body = testoIntero.slice(inizioBody);
   const bodyOffset = inizioBody;

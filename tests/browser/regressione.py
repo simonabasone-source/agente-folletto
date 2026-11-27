@@ -239,6 +239,48 @@ async def main():
         await pg.click('#s-conferma'); await pg.wait_for_timeout(200)
         verifica('dopo una dettatura invece si torna pronti a dettare', aperta and await pg.evaluate("document.activeElement?.id") == 'testo')
 
+        print('Cognomi in più parti: niente conferma (Dani 27/11)')
+        await pg.click('#nav button[data-vista=giro]'); await pg.wait_for_timeout(150)
+        await detta(pg, 'Adesso via Mazzini')
+        aperta = await detta(pg, 'Civico 4 Boselli terret assente', conferma=False)
+        verifica('«Civico 4 Boselli terret assente» salvato senza scheda', not aperta)
+
+        print('Aggiornare a voce: cognome + civico (Dani 27/11)')
+        conta = lambda nome: pg.evaluate(f"window.__folletto.stato.contatti.filter(c => c.identificativo === '{nome}').length")
+        esito = lambda nome, civ: pg.evaluate(f"window.__folletto.stato.contatti.find(c => c.identificativo === '{nome}' && c.civico === '{civ}')?.esito")
+        await detta(pg, 'Civico 31 Bisotti assente')
+        aperta = await detta(pg, 'Civico 31 Bisotti non interessato', conferma=False)
+        verifica('assente → non interessato a voce: senza scheda', not aperta)
+        verifica('nessun doppione: un solo Bisotti', await conta('Bisotti') == 1, await conta('Bisotti'))
+        verifica('Bisotti ora è non interessato', await esito('Bisotti', '31') == 'non_interessato')
+        aperta = await detta(pg, 'Civico 31 Bisotti appuntamento domani alle 10', conferma=False)
+        verifica('appuntamento a voce: scheda di conferma come sempre', aperta)
+        await pg.click('#s-conferma'); await pg.wait_for_timeout(200)
+        verifica('ancora un solo Bisotti, ora appuntamento', await conta('Bisotti') == 1 and await esito('Bisotti', '31') == 'appuntamento')
+        await pg.click('#nav button[data-vista=agenda]'); await pg.wait_for_timeout(200)
+        verifica('Bisotti compare in agenda', 'Bisotti' in await pg.inner_text('#app'))
+        await pg.click('#nav button[data-vista=giro]'); await pg.wait_for_timeout(150)
+        await detta(pg, 'Civico 33 Bisotti assente')
+        verifica('stesso cognome a un altro civico: contatto nuovo', await conta('Bisotti') == 2 and await esito('Bisotti', '31') == 'appuntamento')
+        # Annulla dopo un aggiornamento: si torna a com'era
+        await pg.fill('#testo', 'Civico 33 Bisotti non interessato'); await pg.click('#invia'); await pg.wait_for_timeout(250)
+        await pg.click('#toast button'); await pg.wait_for_timeout(250)
+        verifica('Annulla dopo un aggiornamento: Bisotti 33 torna assente, nessuno sparisce', await esito('Bisotti', '33') == 'assente' and await conta('Bisotti') == 2)
+        # due contatti uguali (stesso cognome e civico): l'app chiede quale
+        await detta(pg, 'Civico 40 Gallo assente')
+        await pg.evaluate("(() => { const st = window.__folletto.stato; const g = st.contatti.find(c => c.identificativo === 'Gallo'); st.contatti.push({ ...structuredClone(g), id: 'gallo-2', creato: new Date(Date.now() + 1000).toISOString() }); })()")
+        await pg.fill('#testo', 'Civico 40 Gallo non interessato'); await pg.click('#invia'); await pg.wait_for_timeout(250)
+        verifica('due Gallo al civico 40: l\'app chiede quale', await pg.is_visible('#scegli-contatto'))
+        await pg.click('#scegli-contatto button[value="1"]'); await pg.wait_for_timeout(250)
+        gallo = await pg.evaluate("window.__folletto.stato.contatti.filter(c => c.identificativo === 'Gallo').map(c => c.id + ':' + c.esito).sort()")
+        verifica('aggiornato solo quello scelto', len(gallo) == 2 and 'gallo-2:non_interessato' in gallo and sum(':assente' in g for g in gallo) == 1, gallo)
+        await pg.fill('#testo', 'Civico 40 Gallo ripassare domani'); await pg.click('#invia'); await pg.wait_for_timeout(250)
+        await pg.click('#scegli-contatto button[value="nuovo"]'); await pg.wait_for_timeout(250)
+        if await pg.is_visible('#s-conferma'):
+            await pg.click('#s-conferma'); await pg.wait_for_timeout(150)
+        verifica('"È un altro": contatto nuovo', await conta('Gallo') == 3, await conta('Gallo'))
+        await pg.evaluate("document.querySelector('#toast').hidden = true")
+
         print('Tante frasi: si mandano in più parti (caso di Dani 27/11: 79 frasi, arrivate 30)')
         await pg.evaluate("""(() => { const st = window.__folletto.stato; st.contatti.forEach((c) => {
             c.testoOriginale = (c.testoOriginale || 'frase') + ' ' + 'x'.repeat(60);

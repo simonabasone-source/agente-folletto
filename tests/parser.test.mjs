@@ -25,7 +25,18 @@ test('Contardi: cognome spezzato, giovedì = settimana prossima, Dyson, note', (
   assert.equal(c.concorrente, 'Dyson');
   assert.equal(c.pretesto, null); // "fissata con pulizie" è una nota, non il pretesto
   assert.match(c.note, /moglie fissata con pulizie/);
-  assert.ok(c.avvisi.some((a) => a.includes('spezzato')));
+  // dal 27/11 nessun avviso "spezzato": Dani non vuole la conferma per i cognomi in più parti
+  assert.ok(!c.avvisi.some((a) => a.includes('spezzato')));
+});
+
+test('cognomi in più parti salvati senza conferma (Dani 27/11): «Boselli terret assente», «Cicerchia baccianella assente»', () => {
+  for (const [t, nome] of [['Boselli terret assente', 'Boselli Terret'], ['Cicerchia baccianella assente', 'Cicerchia Baccianella'], ['Giangi chiodo zucchini assente', 'Giangi Chiodo Zucchini']]) {
+    const c = uno(t, { via: 'Via Roma' });
+    assert.equal(c.identificativo, nome);
+    assert.equal(c.esito, 'assente');
+    assert.deepEqual(c.avvisi, []);
+    assert.equal(c.daConfermare, false, t);
+  }
 });
 
 test('correzione imparata: "Con tardi" diventa "Contardi"', () => {

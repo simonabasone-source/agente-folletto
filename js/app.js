@@ -7,8 +7,9 @@ import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './ag
 import { istantanea, differenze, parti } from './segnalazioni.js';
 import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
 import { novitaDaMostrare, nonLette } from './notifiche.js';
+import { candidati, applica } from './aggiorna.js';
 
-const VERSIONE_APP = '1.7.4 (Step 1)';
+const VERSIONE_APP = '1.8.0 (Step 1)';
 const NUMERO_VERSIONE = VERSIONE_APP.split(' ')[0];
 
 const stato = {
@@ -274,6 +275,7 @@ async function invia() {
   const salvati = [];
   const messaggi = [];
   let nuovoCondo = null;
+  const prima = [...stato.contatti]; // si aggiornano solo contatti dettati prima di questa frase
 
   for (const it of r.items) {
     if (it.tipo === 'posizione') {
@@ -286,6 +288,19 @@ async function invia() {
       salvati.push({ store: 'posizioni', id: rec.id });
       if (it.sottotipo === 'condominio') nuovoCondo = { id: rec.id, civico: rec.civico, campanelli: rec.campanelli };
       messaggi.push(it.avvisi?.length ? it.avvisi[0] : `Ora sei in: ${[it.via, it.comune].filter(Boolean).join(', ')}${it.sottotipo === 'condominio' ? ` · condominio ${it.civico}` : it.civico ? ` ${it.civico}` : ''}`);
+      continue;
+    }
+    // stesso cognome + stesso civico già in lista oggi → si aggiorna quello (richiesta di Dani 27/11)
+    const cand = candidati(prima, it, isoDate(now));
+    const daAggiornare = cand.length === 1 ? cand[0] : cand.length > 1 ? await scegliContatto(cand, it) : null;
+    if (daAggiornare) {
+      const vecchio = structuredClone(daAggiornare);
+      const n = applica(daAggiornare, it, now);
+      await db.metti('contatti', n);
+      stato.contatti = stato.contatti.map((x) => (x.id === n.id ? n : x));
+      salvati.push({ store: 'contatti', id: n.id, vecchio });
+      if (n.confermato) messaggi.push(`Aggiornato: ${n.identificativo} — ${ETICHETTA[n.esito].toLowerCase()}`);
+      else stato.coda.push(n.id);
       continue;
     }
     let condominioId = it.condominio?.id ?? null;
@@ -325,6 +340,11 @@ async function invia() {
   if (messaggi.length) {
     toast(messaggi.join(' · '), async () => {
       for (const s of salvati) {
+        if (s.vecchio) { // era un aggiornamento: si torna a com'era prima
+          await db.metti('contatti', s.vecchio);
+          stato.contatti = stato.contatti.map((c) => (c.id === s.id ? s.vecchio : c));
+          continue;
+        }
         await db.togli(s.store, s.id);
         if (s.store === 'contatti') stato.contatti = stato.contatti.filter((c) => c.id !== s.id);
         else stato.posizioni = stato.posizioni.filter((p) => p.id !== s.id);
@@ -333,6 +353,28 @@ async function invia() {
       aggiornaGiro();
     });
   }
+}
+
+// Più contatti di oggi con lo stesso cognome e civico: Dani sceglie con un tocco, l'app non indovina.
+function scegliContatto(cand, it) {
+  return new Promise((ok) => {
+    const d = document.createElement('dialog');
+    d.id = 'scegli-contatto';
+    const voce = (c, i) => `<button value="${i}" class="menu-voce">${esc(c.identificativo)}${c.civico ? ` · civico ${esc(c.civico)}` : ''}${c.via ? ` · ${esc(c.via)}` : ''} · ${esc(ETICHETTA[c.esito])} · ${isoTime(new Date(c.creato))}</button>`;
+    d.innerHTML = `
+      <form method="dialog">
+        <p><b>${cand.length} ${esc(it.identificativo)} oggi.</b> Quale aggiorno?</p>
+        ${cand.map(voce).join('')}
+        <button value="nuovo" class="secondario" style="width:100%">È un altro: nuovo contatto</button>
+      </form>`;
+    document.body.appendChild(d);
+    d.addEventListener('close', () => {
+      const i = Number(d.returnValue);
+      d.remove();
+      ok(Number.isInteger(i) && d.returnValue !== '' && cand[i] ? cand[i] : null);
+    });
+    d.showModal();
+  });
 }
 
 // ---------------------------------------------------------------- scheda di conferma
