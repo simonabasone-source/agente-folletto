@@ -354,7 +354,35 @@ function dividi(testo) {
 
 const RE_CIVICO = R('^(?:al\\s+)?(?:\\b(civico|numero|n\\.)\\s*|(?=\\d))(\\d{1,4}(?:\\s*[a-z](?![\\p{L}]))?)\\b', 'iu');
 const RE_INTERNO = R('^\\b(interno|int\\.|scala|piano)\\s+(\\w{1,3})\\b', 'iu');
-const RE_CONDO = R('^[\\s,]*(?:è\\s+un\\s+|e\\s+)?\\b(?:condominio|palazzina|palazzo)\\b(?:\\s+(?:di|da|con))?(?:\\s+(\\d{1,3})\\s+(?:campanell[io]|appartament[io]|famiglie|interni))?');
+const RE_CONDO = R('^[\\s,.;:\\-–]*(?:è\\s+un\\s+|e\\s+)?\\b(?:condominio|palazzina|palazzo)\\b(?:\\s+(?:di|da|con))?(?:\\s+(\\d{1,3})\\s+(?:campanell[io]|appartament[io]|famiglie|interni))?');
+
+const RE_PAROLA_CONDO = R('\\b(?:condominio|palazzina|palazzo)\\b');
+const RE_N_CAMPANELLI = R('\\b(\\d{1,3})\\s*(?:campanell[io]|appartament[io]|interni|famiglie)\\b');
+const RE_CONDO_N = R('\\b(?:condominio|palazzina|palazzo)\\s+(?:(?:di|da|con)\\s+)?(\\d{1,3})\\b(?!\\s*[a-z]\\b)');
+const RE_CIVICO_OVUNQUE = R('\\b(?:civico|numero)\\s*(\\d{1,4}(?:\\s*[a-z](?![\\p{L}]))?)\\b');
+
+// Riconosce un condominio anche quando la frase non comincia con "Civico N condominio…".
+// Solo se nella frase non c'è un esito (altrimenti è un contatto).
+function trovaCondominio(frase, corrente) {
+  const nCamp = frase.match(RE_N_CAMPANELLI);
+  const parola = RE_PAROLA_CONDO.test(frase);
+  if (!nCamp && !parola) return null;
+  if (trovaEsito(frase).esito) return null;
+  // "Civico 3 condominio 12 campanelli" lo gestisce già il ramo del civico
+  const civ = frase.match(RE_CIVICO);
+  if (civ && frase.slice(civ[0].length).match(RE_CONDO)) return null;
+  // una frase che comincia con un cognome non è un condominio ("Rossi condominio" senza esito → contatto)
+  const iniziaBene = R('^[\\s,]*(?:\\b(?:civico|numero|è|e|un|il|nel|al|in)\\b|\\b(?:condominio|palazzina|palazzo)\\b|\\d)').test(frase);
+  if (!iniziaBene) return null;
+  const campanelliTxt = nCamp?.[1] ?? frase.match(RE_CONDO_N)?.[1] ?? null;
+  const campanelli = campanelliTxt ? Number(campanelliTxt) : null;
+  const civTrovato = frase.match(RE_CIVICO_OVUNQUE)?.[1];
+  const civico = civTrovato ? puliziaCivico(civTrovato) : (corrente.civico ?? null);
+  const avvisi = [];
+  if (!campanelli) avvisi.push('Quanti campanelli ha il condominio?');
+  if (!civico) avvisi.push('Manca il civico del condominio.');
+  return { civico, campanelli, avvisi };
+}
 
 /**
  * @param {string} testo testo dettato
@@ -373,6 +401,15 @@ export function analizza(testo, { now = new Date(), ctx = {}, correzioni = [] } 
       corrente = p.ctx;
       delete p.ctx;
       items.push({ ...p, testoOriginale: frase });
+      continue;
+    }
+
+    // Condominio detto in un altro ordine o senza civico (caso di Dani 27/11):
+    // "Condominio 12 campanelli", "12 campanelli", "Condominio civico 3 da 12 campanelli", "Civico 3, è un condominio da 12"…
+    const condo = trovaCondominio(frase, corrente);
+    if (condo) {
+      corrente = { ...corrente, civico: condo.civico, condominio: { civico: condo.civico, campanelli: condo.campanelli } };
+      items.push({ tipo: 'posizione', sottotipo: 'condominio', comune: corrente.comune, via: corrente.via, ...condo, testoOriginale: frase });
       continue;
     }
 

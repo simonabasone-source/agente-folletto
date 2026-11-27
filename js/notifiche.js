@@ -5,6 +5,10 @@
 
 export const NOVITA = [
   {
+    versione: '1.7.2',
+    righe: ['Il condominio si può dire in più modi: "Condominio 12 campanelli", "12 campanelli", "Condominio civico 3 da 12 campanelli". Se non dici il civico, usa quello in cui sei.'],
+  },
+  {
     versione: '1.7.1',
     righe: ['Se la tastiera scrive i numeri in lettere ("civico tre", "dodici campanelli", "alle sei") l\'app ora li capisce.'],
   },

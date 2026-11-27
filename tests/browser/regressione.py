@@ -187,6 +187,14 @@ async def main():
         verifica('i campanelli salgono di 12', int((await pg.inner_text('#contatori')).split('\n')[0]) == prima + 12)
         verifica('la barra mostra il condominio civico 3', 'condominio civico 3 (12 campanelli)' in await pg.inner_text('#pos'))
 
+        print('Condominio detto senza civico (caso di Dani 27/11)')
+        await detta(pg, 'Civico 7')
+        prima = int((await pg.inner_text('#contatori')).split('\n')[0])
+        aperta = await detta(pg, 'Condominio 10 campanelli', conferma=False)
+        verifica('"Condominio 10 campanelli" dopo "Civico 7": condominio, senza scheda', not aperta)
+        verifica('i campanelli salgono di 10', int((await pg.inner_text('#contatori')).split('\n')[0]) == prima + 10)
+        verifica('la barra mostra il condominio civico 7', 'condominio civico 7 (10 campanelli)' in await pg.inner_text('#pos'))
+
         print('Agenda')
         await pg.click('#nav button[data-vista=agenda]'); await pg.wait_for_timeout(200)
         ag = await pg.inner_text('#app')

@@ -247,3 +247,48 @@ test('"le due" in una nota resta in lettere', () => {
   const c = uno('Rossi non interessato hanno le due figlie');
   assert.match(c.note, /le due figlie/);
 });
+
+test('condominio detto in altri modi (caso di Dani 27/11: bloccato davanti al condominio)', () => {
+  const ctx = { comune: 'Piacenza', via: 'Via Dino Laudi', civico: '3' };
+  const casi = [
+    ['Condominio 12 campanelli', '3', 12],
+    ['condominio di 12 campanelli', '3', 12],
+    ['12 campanelli', '3', 12],
+    ['Condominio civico 3 da 12 campanelli', '3', 12],
+    ['Civico 3 - condominio 12 campanelli', '3', 12],
+    ['Civico 3, condominio 12 campanelli', '3', 12],
+    ['Civico 3 è un condominio da 12 campanelli', '3', 12],
+    ['condominio dodici campanelli', '3', 12],
+    ['Civico 5 condominio con 8 appartamenti', '5', 8],
+  ];
+  for (const [frase, civico, campanelli] of casi) {
+    const r = analizza(frase, { now, ctx });
+    const p = r.items[r.items.length - 1];
+    assert.equal(p.sottotipo, 'condominio', frase);
+    assert.equal(p.civico, civico, frase);
+    assert.equal(p.campanelli, campanelli, frase);
+    assert.deepEqual(r.ctx.condominio, { civico, campanelli }, frase);
+  }
+});
+
+test('"Civico 3. Condominio 12 campanelli" (punto messo dalla tastiera)', () => {
+  const r = analizza('Civico 3. Condominio 12 campanelli', { now, ctx: { via: 'Via Roma' } });
+  const ultimo = r.items[r.items.length - 1];
+  assert.equal(ultimo.sottotipo, 'condominio');
+  assert.equal(ultimo.civico, '3');
+  assert.equal(ultimo.campanelli, 12);
+});
+
+test('condominio senza civico né civico corrente: avvisa', () => {
+  const p = uno('Condominio 12 campanelli', { via: 'Via Roma' });
+  assert.equal(p.sottotipo, 'condominio');
+  assert.equal(p.campanelli, 12);
+  assert.ok(p.avvisi.some((a) => a.includes('Manca il civico')));
+});
+
+test('con un esito resta un contatto, anche se si parla di condominio', () => {
+  const c = uno('Rossi non interessato vive in un condominio da 12 campanelli', { via: 'Via Roma', civico: '3' });
+  assert.equal(c.tipo, 'contatto');
+  assert.equal(c.identificativo, 'Rossi');
+  assert.equal(c.esito, 'non_interessato');
+});
