@@ -170,7 +170,13 @@ async def main():
             await detta(pg, f)
         ordine = await pg.evaluate("""[...[...document.querySelectorAll('#lista-oggi details.via')].find(d => d.querySelector('.via-nome').textContent.trim().startsWith('Via Verdi')).querySelectorAll('li')]
             .map(li => li.classList.contains('condominio') ? '[' + li.querySelector('.ora').textContent.trim() + ']' : li.querySelector('.nome').textContent.trim())""")
-        verifica('6A, i suoi cognomi, poi 6B e i suoi', ordine == ['[6A]', 'Uno', 'Due', '[6B]', 'Tre', 'Quattro'], ordine)
+        verifica('ultimo in alto: 6B con i suoi (ultimo prima), poi 6A con i suoi', ordine == ['[6B]', 'Quattro', 'Tre', '[6A]', 'Due', 'Uno'], ordine)
+        await detta(pg, 'Adesso via Gialla')
+        for f in ['Civico 9 Primo assente', 'Civico 2 Secondo assente', 'Civico 5 Terzo non interessato']:
+            await detta(pg, f)
+        case = await pg.evaluate("""[...[...document.querySelectorAll('#lista-oggi details.via')].find(d => d.querySelector('.via-nome').textContent.trim().startsWith('Via Gialla')).querySelectorAll('li .nome')].map(n => n.textContent.trim())""")
+        verifica('case singole: l\'ultimo suonato in alto, il primo in fondo', case == ['Terzo', 'Secondo', 'Primo'], case)
+        await pg.click('#lista-oggi details.via:has(.via-nome:text-is("Via Verdi")) summary'); await pg.wait_for_timeout(100)
         rientro = await pg.locator('#lista-oggi details.via:has(.via-nome:text-is("Via Verdi")) li.in-condominio').count()
         verifica('i cognomi del condominio sono rientrati sotto di esso', rientro == 4, rientro)
 
