@@ -8,7 +8,7 @@ import { istantanea, differenze, messaggio } from './segnalazioni.js';
 import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
 import { novitaDaMostrare, nonLette } from './notifiche.js';
 
-const VERSIONE_APP = '1.7.2 (Step 1)';
+const VERSIONE_APP = '1.7.3 (Step 1)';
 const NUMERO_VERSIONE = VERSIONE_APP.split(' ')[0];
 
 const stato = {
@@ -261,7 +261,7 @@ function collegaListe() {
     const b = e.target.closest('.lista button[data-id]');
     if (!b) return;
     const c = stato.contatti.find((x) => x.id === b.dataset.id);
-    if (c) apriScheda(c);
+    if (c) apriScheda(c, { daLista: true });
   });
 }
 
@@ -340,8 +340,12 @@ let bozza = null;
 let toccatoData = false;
 let toccatoNome = false;
 let eliminaArmato = false;
+// Scheda aperta toccando una riga della lista (non da una dettatura): alla chiusura
+// si resta dov'eri, senza tornare in cima e senza aprire la tastiera (segnalazione di Dani 27/11).
+let apertaDaLista = null; // { scroll } oppure null
 
-function apriScheda(c) {
+function apriScheda(c, { daLista = false } = {}) {
+  if (daLista && $('#scheda').hidden) apertaDaLista = { scroll: window.scrollY };
   bozza = structuredClone(c);
   toccatoData = false;
   toccatoNome = false;
@@ -497,6 +501,13 @@ function prossimo() {
   if (next) { apriScheda(next); return; }
   chiudiScheda();
   render();
+  if (apertaDaLista) {
+    const { scroll } = apertaDaLista;
+    apertaDaLista = null;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    window.scrollTo(0, scroll);
+    return;
+  }
   if (stato.vista === 'giro') $('#testo')?.focus();
 }
 

@@ -209,6 +209,30 @@ async def main():
         verifica('messaggio con frase originale e correzione', '«Civico 3 Verdi assente»' in testo and 'Dani: Verdi · non interessato' in testo, testo)
         verifica('elenco svuotato dopo l\'invio', '(0)' in await pg.inner_text('#m-segnala'))
 
+        print('Correggere una riga in fondo alla lista: si resta lì (caso di Dani 27/11)')
+        await pg.click('#nav button[data-vista=giro]'); await pg.wait_for_timeout(150)
+        await detta(pg, 'Adesso via Lunga')
+        for i in range(1, 16):
+            await detta(pg, f'Civico {i} Cognome{i} assente')
+        await pg.evaluate("document.querySelector('#testo').blur()")
+        # scorre in basso nella lista e tocca la riga che si trova in mezzo allo schermo
+        await pg.evaluate('window.scrollTo(0, 1400)'); await pg.wait_for_timeout(200)
+        prima_scroll = await pg.evaluate('window.scrollY')
+        info = await pg.evaluate('[document.scrollingElement.scrollHeight, innerHeight]')
+        # tocca (come un dito) la prima riga ben visibile a metà schermo
+        punto = await pg.evaluate("""(() => { const b = [...document.querySelectorAll('#lista-oggi button[data-id]')]
+            .find(b => { const r = b.getBoundingClientRect(); return r.height > 0 && r.top > 250 && r.bottom < innerHeight - 150; });
+            const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()""")
+        await pg.mouse.click(punto[0], punto[1]); await pg.wait_for_timeout(250)
+        await pg.click('#scheda .esiti button[data-esito=non_interessato]')
+        await pg.click('#s-conferma'); await pg.wait_for_timeout(300)
+        dopo_scroll = await pg.evaluate('window.scrollY')
+        verifica('dopo Conferma resta nello stesso punto della lista', prima_scroll > 300 and abs(dopo_scroll - prima_scroll) < 40, (prima_scroll, dopo_scroll, info))
+        verifica('dopo Conferma la tastiera non si apre', await pg.evaluate("document.activeElement?.id") != 'testo')
+        aperta = await detta(pg, 'Civico 16 Ultimo appuntamento domani alle 9', conferma=False)
+        await pg.click('#s-conferma'); await pg.wait_for_timeout(200)
+        verifica('dopo una dettatura invece si torna pronti a dettare', aperta and await pg.evaluate("document.activeElement?.id") == 'testo')
+
         print('Campanella delle notifiche')
         await pg.click('#nav button[data-vista=giro]'); await pg.wait_for_timeout(150)
         pallino = await pg.locator('#campanella .pallino').count()

@@ -1,6 +1,6 @@
 // Service worker: tiene l'app disponibile anche senza internet.
 // Cambia VERSIONE a ogni rilascio, così il telefono scarica i file nuovi.
-const VERSIONE = 'folletto-v1.7.2';
+const VERSIONE = 'folletto-v1.7.3';
 const FILE = [
   './',
   './index.html',
