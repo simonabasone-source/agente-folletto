@@ -4,11 +4,11 @@ import { isoDate, isoTime, dataEstesa, dataBreve, addDays } from './parser/dates
 import * as db from './db.js';
 import { statistiche } from './stats.js';
 import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './agenda.js';
-import { istantanea, differenze, messaggio } from './segnalazioni.js';
+import { istantanea, differenze, parti } from './segnalazioni.js';
 import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
 import { novitaDaMostrare, nonLette } from './notifiche.js';
 
-const VERSIONE_APP = '1.7.3 (Step 1)';
+const VERSIONE_APP = '1.7.4 (Step 1)';
 const NUMERO_VERSIONE = VERSIONE_APP.split(' ')[0];
 
 const stato = {
@@ -57,7 +57,7 @@ async function avvio() {
     // nuova versione installata: notifica nella campanella (mai ricarica automatica)
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (avevaVersione) segnalaAggiornamento(); });
   }
-  window.__folletto = { segnalaAggiornamento }; // usato dalle prove automatiche
+  window.__folletto = { segnalaAggiornamento, stato }; // usato dalle prove automatiche
 }
 
 // ---------------------------------------------------------------- campanella
@@ -555,6 +555,7 @@ function htmlMenu() {
     <button class="menu-voce" id="m-segnala" ${segn.length ? 'style="border:2px solid var(--rosso);font-weight:700"' : ''}>Frasi da mandare a Simona (${segn.length})</button>
     <p class="nota">Ogni volta che correggi qualcosa che l'app aveva capito male, finisce qui. Tocca per mandarle su WhatsApp.</p>
     <div id="m-segnala-dopo"></div>
+    ${giaInviate().length ? `<button class="menu-voce" id="m-rimetti">Rimetti in elenco le frasi già mandate (${giaInviate().length})</button><p class="nota">Se a Simona non sono arrivate tutte: tocca qui e mandale di nuovo.</p>` : ''}
     <h2>Posizione</h2>
     <button class="menu-voce" id="m-pos">Cambia paese / via / civico a mano</button>
     <h2>Backup</h2>
@@ -574,30 +575,56 @@ function daSegnalare() {
     .sort((a, b) => a.creato.localeCompare(b.creato));
 }
 
-async function segnaInviate(lista) {
+function giaInviate() {
+  return stato.contatti.filter((c) => c.segnalazione?.inviata);
+}
+
+async function segnaInviate(lista, inviata = true) {
   for (const c of lista) {
-    c.segnalazione.inviata = true;
+    c.segnalazione.inviata = inviata;
     await db.metti('contatti', c);
   }
-  toast(`${lista.length} frasi segnate come inviate. Grazie!`);
-  render();
+}
+
+// Una parte alla volta: WhatsApp tronca i messaggi lunghi (27/11: 79 frasi, ne sono arrivate 30).
+async function mandaParte(p) {
+  if (navigator.share) {
+    try { await navigator.share({ text: p.testo }); await segnaInviate(p.contatti); return true; } catch (e) { if (e?.name === 'AbortError') return false; }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(p.testo)}`, '_blank');
+  await segnaInviate(p.contatti);
+  return true;
 }
 
 async function inviaSegnalazioni() {
   const lista = daSegnalare();
   if (!lista.length) { toast('Nessuna frase da mandare: per ora l\'app non ha sbagliato.'); return; }
-  const testo = messaggio(lista);
-  if (navigator.share) {
-    try { await navigator.share({ text: testo }); await segnaInviate(lista); return; } catch (e) { if (e?.name === 'AbortError') return; }
+  const pp = parti(lista);
+  if (pp.length === 1) {
+    if (await mandaParte(pp[0])) { toast(`${lista.length} frasi mandate. Grazie!`); render(); }
+    return;
   }
-  // senza condivisione: apre WhatsApp e lascia il tasto per svuotare l'elenco
-  window.open(`https://wa.me/?text=${encodeURIComponent(testo)}`, '_blank');
-  $('#m-segnala-dopo').innerHTML = '<button class="menu-voce" id="m-svuota">Le ho mandate: svuota l\'elenco</button>';
-  $('#m-svuota').addEventListener('click', () => segnaInviate(lista));
+  // più parti: un tasto per parte, Dani le manda una dopo l'altra
+  const box = $('#m-segnala-dopo');
+  box.innerHTML = `<p class="nota">Sono tante: vanno mandate in ${pp.length} messaggi. Tocca le parti una alla volta.</p>` +
+    pp.map((p, k) => `<button class="menu-voce" data-parte="${k}">Manda parte ${k + 1} di ${pp.length} (frasi ${p.da}–${p.a})</button>`).join('');
+  box.querySelectorAll('[data-parte]').forEach((b) => b.addEventListener('click', async () => {
+    if (!(await mandaParte(pp[+b.dataset.parte]))) return;
+    b.disabled = true; b.textContent = `✓ Parte ${+b.dataset.parte + 1} mandata`;
+    const restano = daSegnalare().length;
+    $('#m-segnala').textContent = `Frasi da mandare a Simona (${restano})`;
+    if (!restano) { toast('Tutte le parti mandate. Grazie!'); setTimeout(render, 1500); }
+  }));
 }
 
 function collegaMenu() {
   $('#m-segnala').addEventListener('click', inviaSegnalazioni);
+  $('#m-rimetti')?.addEventListener('click', async () => {
+    const l = giaInviate();
+    await segnaInviate(l, false);
+    toast(`${l.length} frasi di nuovo in elenco.`);
+    render();
+  });
   $('#m-pos').addEventListener('click', modificaPosizione);
   $('#m-esporta').addEventListener('click', async () => {
     const dati = await db.esporta();

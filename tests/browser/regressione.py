@@ -208,6 +208,11 @@ async def main():
         testo = await pg.evaluate('window.__condiviso') or ''
         verifica('messaggio con frase originale e correzione', '«Civico 3 Verdi assente»' in testo and 'Dani: Verdi · non interessato' in testo, testo)
         verifica('elenco svuotato dopo l\'invio', '(0)' in await pg.inner_text('#m-segnala'))
+        verifica('compare il tasto per rimettere in elenco le frasi già mandate', '(2)' in await pg.inner_text('#m-rimetti'))
+        await pg.click('#m-rimetti'); await pg.wait_for_timeout(300)
+        verifica('le frasi già mandate tornano in elenco (caso 27/11: perse 49 frasi)', '(2)' in await pg.inner_text('#m-segnala'))
+        await pg.click('#m-segnala'); await pg.wait_for_timeout(300)
+        verifica('rimandate: elenco di nuovo vuoto', '(0)' in await pg.inner_text('#m-segnala'))
 
         print('Correggere una riga in fondo alla lista: si resta lì (caso di Dani 27/11)')
         await pg.click('#nav button[data-vista=giro]'); await pg.wait_for_timeout(150)
@@ -232,6 +237,28 @@ async def main():
         aperta = await detta(pg, 'Civico 16 Ultimo appuntamento domani alle 9', conferma=False)
         await pg.click('#s-conferma'); await pg.wait_for_timeout(200)
         verifica('dopo una dettatura invece si torna pronti a dettare', aperta and await pg.evaluate("document.activeElement?.id") == 'testo')
+
+        print('Tante frasi: si mandano in più parti (caso di Dani 27/11: 79 frasi, arrivate 30)')
+        await pg.evaluate("""(() => { const st = window.__folletto.stato; st.contatti.forEach((c) => {
+            c.testoOriginale = (c.testoOriginale || 'frase') + ' ' + 'x'.repeat(60);
+            c.letto = { identificativo: c.identificativo, esito: 'assente' }; c.segnalazione = { campi: ['esito'], inviata: false }; }); })()""")
+        await pg.click('#nav button[data-vista=menu]'); await pg.wait_for_timeout(200)
+        n_frasi = int((await pg.inner_text('#m-segnala')).split('(')[1].split(')')[0])
+        await pg.click('#m-segnala'); await pg.wait_for_timeout(300)
+        tasti = pg.locator('#m-segnala-dopo button[data-parte]')
+        n_parti = await tasti.count()
+        verifica(f'{n_frasi} frasi lunghe → più parti', n_frasi >= 20 and n_parti >= 2, (n_frasi, n_parti))
+        lunghezze, numeri = [], []
+        for k in range(n_parti):
+            await tasti.nth(k).click(); await pg.wait_for_timeout(250)
+            t = await pg.evaluate('window.__condiviso') or ''
+            lunghezze.append(len(t))
+            numeri += [int(r.split(')')[0]) for r in t.split('\n') if r[:1].isdigit() and ') «' in r]
+        verifica('ogni parte sotto i 3000 caratteri', all(l <= 3000 for l in lunghezze), lunghezze)
+        verifica('nessuna frase persa né doppia, numerazione continua', numeri == list(range(1, n_frasi + 1)), numeri)
+        verifica('titolo con "parte 1 di N"', f'parte {n_parti} di {n_parti}' in t, t[:80])
+        verifica('dopo l\'ultima parte l\'elenco è vuoto', '(0)' in await pg.inner_text('#m-segnala'))
+        await pg.wait_for_timeout(1700)
 
         print('Campanella delle notifiche')
         await pg.click('#nav button[data-vista=giro]'); await pg.wait_for_timeout(150)
