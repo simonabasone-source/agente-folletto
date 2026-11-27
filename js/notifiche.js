@@ -5,6 +5,10 @@
 
 export const NOVITA = [
   {
+    versione: '1.7.3',
+    righe: ['Quando correggi una riga della lista e confermi, resti nello stesso punto: niente più ritorno in cima e niente tastiera.'],
+  },
+  {
     versione: '1.7.2',
     righe: ['Il condominio si può dire in più modi: "Condominio 12 campanelli", "12 campanelli", "Condominio civico 3 da 12 campanelli". Se non dici il civico, usa quello in cui sei.'],
   },
