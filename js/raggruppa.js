@@ -63,3 +63,15 @@ export function raggruppaPerVia(contatti, condomini = []) {
   gruppi.sort((a, b) => b.ultimo.localeCompare(a.ultimo));
   return gruppi.map(({ ultimo, ...g }) => g);
 }
+
+/**
+ * Giorni di lavoro da mostrare nei tasti sopra la lista (richiesta di Dani 28/11: rivedere i giorni
+ * precedenti quando ripassa dagli assenti). Oggi sempre per primo, poi gli ultimi giorni in cui ha
+ * lavorato (non i giorni di calendario: domeniche e giorni liberi non occupano posto), dal più recente.
+ * I dati non vengono mai cancellati: qui si sceglie solo cosa mostrare.
+ */
+export function giorniRecenti(contatti, posizioni, oggi, quanti = 7) {
+  const giorni = new Set();
+  for (const x of [...contatti, ...posizioni]) if (x.giorno && x.giorno < oggi) giorni.add(x.giorno);
+  return [oggi, ...[...giorni].sort().reverse().slice(0, quanti - 1)];
+}

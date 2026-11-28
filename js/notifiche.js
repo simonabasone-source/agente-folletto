@@ -5,6 +5,13 @@
 
 export const NOVITA = [
   {
+    versione: '1.9.0',
+    righe: [
+      'Sopra la lista ci sono i tasti dei giorni: Oggi, Ieri e gli ultimi giorni di lavoro. Tocca un giorno per rivedere i suoi citofoni, via per via.',
+      'Quando detti, l\'app torna da sola a Oggi. I dati dei giorni passati restano tutti salvati.',
+    ],
+  },
+  {
     versione: '1.8.0',
     righe: [
       'Puoi aggiornare un cliente a voce: ridetta civico e cognome con il nuovo esito (es. "Civico 12 Bisotti appuntamento sabato alle 10"). L\'app aggiorna quello già in lista, senza doppioni.',
