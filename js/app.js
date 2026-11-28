@@ -5,11 +5,11 @@ import * as db from './db.js';
 import { statistiche } from './stats.js';
 import { vociAgenda, daFissare, sovrapposizioni, raggruppaPerGiorno } from './agenda.js';
 import { istantanea, differenze, parti } from './segnalazioni.js';
-import { raggruppaPerVia, chiaveVia } from './raggruppa.js';
+import { raggruppaPerVia, chiaveVia, giorniRecenti } from './raggruppa.js';
 import { novitaDaMostrare, nonLette } from './notifiche.js';
 import { candidati, applica } from './aggiorna.js';
 
-const VERSIONE_APP = '1.8.0 (Step 1)';
+const VERSIONE_APP = '1.9.0 (Step 1)';
 const NUMERO_VERSIONE = VERSIONE_APP.split(' ')[0];
 
 const stato = {
@@ -21,6 +21,7 @@ const stato = {
   coda: [],
   dettaglioNumeri: false,
   tendine: {}, // chiave via -> aperta/chiusa scelta da Dani
+  giornoVisto: null, // null = oggi; altrimenti un giorno precedente scelto con i tasti sopra la lista
   notifiche: [], // campanella: {id, tipo, titolo, righe, quando, letta}
   protetto: false,
 };
@@ -177,7 +178,8 @@ function htmlGiro() {
       </div>
       <p class="aiuto">«Civico 12 Rossi assente» · «Adesso via Roma» · «Civico 30 condominio 12 campanelli»</p>
     </div>
-    <h2>Oggi</h2>
+    <div class="giorni" id="giorni"></div>
+    <h2 id="titolo-lista">Oggi</h2>
     <div id="lista-oggi"></div>`;
 }
 
@@ -189,12 +191,33 @@ function collegaGiro() {
   $('#campanella').addEventListener('click', apriNotifiche);
   disegnaCampanella();
   $('#contatori').addEventListener('click', () => { stato.dettaglioNumeri = !stato.dettaglioNumeri; aggiornaGiro(); });
+  $('#giorni').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-giorno]');
+    if (!b) return;
+    stato.giornoVisto = b.dataset.giorno === oggi() ? null : b.dataset.giorno;
+    aggiornaGiro();
+  });
+}
+
+function etichettaGiorno(g) {
+  const o = oggi();
+  if (g === o) return 'Oggi';
+  if (g === addDays(o, -1)) return 'Ieri';
+  return dataBreve(g);
 }
 
 function aggiornaGiro() {
   if (stato.vista !== 'giro') return;
   $('#pos').textContent = testoPosizione();
-  const s = statistiche(stato.posizioni, stato.contatti, oggi());
+  const giorni = giorniRecenti(stato.contatti, stato.posizioni, oggi());
+  if (stato.giornoVisto && !giorni.includes(stato.giornoVisto)) stato.giornoVisto = null;
+  const giorno = stato.giornoVisto ?? oggi();
+  const passato = giorno !== oggi();
+  $('#giorni').innerHTML = giorni.length > 1
+    ? giorni.map((g) => `<button type="button" data-giorno="${g}" class="${g === giorno ? 'scelto' : ''}">${esc(etichettaGiorno(g))}</button>`).join('')
+    : '';
+  $('#titolo-lista').textContent = passato ? `${etichettaGiorno(giorno) === 'Ieri' ? 'Ieri · ' : ''}${dataEstesa(giorno)}` : 'Oggi';
+  const s = statistiche(stato.posizioni, stato.contatti, giorno);
   $('#contatori').innerHTML = `
     <button><b>${s.campanelli}</b><span>Campanelli</span></button>
     <button><b>${s.appuntamenti}</b><span>Appuntam.</span></button>
@@ -203,8 +226,8 @@ function aggiornaGiro() {
   $('#dettaglio-num').innerHTML = stato.dettaglioNumeri
     ? `<div class="dettaglio-num">Parlato con <b>${s.parlati}</b> · Assenti <b>${s.assenti}</b>${s.daConfermare ? ` · <span style="color:var(--rosso)">Da confermare <b>${s.daConfermare}</b></span>` : ''}</div>`
     : '';
-  const condominiOggi = stato.posizioni.filter((p) => p.giorno === oggi() && p.sottotipo === 'condominio');
-  const gruppi = raggruppaPerVia(stato.contatti.filter((c) => c.giorno === oggi()), condominiOggi);
+  const condominiOggi = stato.posizioni.filter((p) => p.giorno === giorno && p.sottotipo === 'condominio');
+  const gruppi = raggruppaPerVia(stato.contatti.filter((c) => c.giorno === giorno), condominiOggi);
   const qui = chiaveVia(stato.ctx.comune, stato.ctx.via);
   $('#lista-oggi').innerHTML = gruppi.length
     ? gruppi.map((g) => {
@@ -221,7 +244,7 @@ function aggiornaGiro() {
     : rigaContatto(r.contatto, r.contatto.civico ?? '–', { senzaIndirizzo: true }))).join('')}</ul>
       </details>`;
     }).join('')
-    : '<p class="vuoto">Ancora nessun citofono oggi.</p>';
+    : `<p class="vuoto">${passato ? 'Nessun citofono in questo giorno.' : 'Ancora nessun citofono oggi.'}</p>`;
 }
 
 function rigaCondominio(p) {
@@ -330,6 +353,7 @@ async function invia() {
   await db.scriviMeta('ctx', stato.ctx);
 
   ta.value = '';
+  stato.giornoVisto = null; // quello che detta va sempre in oggi: si torna a oggi per vederlo
   aggiornaGiro();
 
   if (stato.coda.length) {

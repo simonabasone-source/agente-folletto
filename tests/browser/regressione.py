@@ -303,6 +303,37 @@ async def main():
         verifica('dopo l\'ultima parte l\'elenco è vuoto', '(0)' in await pg.inner_text('#m-segnala'))
         await pg.wait_for_timeout(1700)
 
+        print('Giorni precedenti (Dani 28/11: rivedere gli assenti di ieri)')
+        await pg.click('#nav button[data-vista=giro]'); await pg.wait_for_timeout(200)
+        verifica('solo dati di oggi: nessun tasto dei giorni', (await pg.inner_text('#giorni')).strip() == '')
+        await pg.evaluate("""(() => { const st = window.__folletto.stato;
+            const d = (n) => { const x = new Date(); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+            const giorno = (n) => { const x = new Date(); x.setDate(x.getDate() - n); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; };
+            const base = { comune: 'Carpaneto', via: 'Via Ieri', esito: 'assente', confermato: true, note: '', avvisi: [] };
+            st.contatti.push({ ...base, id: 'ieri-1', giorno: giorno(1), creato: d(1) + 'T09:00:00.000Z', civico: '5', identificativo: 'Ieriassente', testoOriginale: 'Civico 5 Ieriassente assente' });
+            st.contatti.push({ ...base, id: 'ieri-2', giorno: giorno(1), creato: d(1) + 'T09:05:00.000Z', civico: '7', identificativo: 'Ieriappunt', esito: 'non_interessato', testoOriginale: 'x' });
+            st.contatti.push({ ...base, id: 'vecchio', giorno: giorno(3), creato: d(3) + 'T09:00:00.000Z', civico: '9', identificativo: 'Treggiorni', testoOriginale: 'x' });
+        })()""")
+        await pg.click('#nav button[data-vista=agenda]'); await pg.wait_for_timeout(100)
+        await pg.click('#nav button[data-vista=giro]'); await pg.wait_for_timeout(200)
+        tasti = await pg.inner_text('#giorni')
+        verifica('tasti Oggi, Ieri e un giorno di 3 giorni fa', tasti.startswith('Oggi') and 'Ieri' in tasti and len(await pg.locator('#giorni button').all()) == 3, tasti)
+        verifica('oggi non mostra i contatti di ieri', 'Ieriassente' not in await pg.text_content('#lista-oggi'))
+        await pg.click('#giorni button:has-text("Ieri")'); await pg.wait_for_timeout(200)
+        lista = await pg.text_content('#lista-oggi')
+        verifica('tocco su Ieri: la lista mostra i citofoni di ieri', 'Ieriassente' in lista and 'Ieriappunt' in lista and 'Treggiorni' not in lista, lista[:200])
+        verifica('il titolo dice Ieri', (await pg.text_content('#titolo-lista')).startswith('Ieri'))
+        verifica('i numeri sono quelli di ieri (1 non interessato)', (await pg.inner_text('#contatori')).split('\n')[6] == '1', await pg.inner_text('#contatori'))
+        await pg.click('#lista-oggi details.via:has(.via-nome:text-is("Via Ieri")) summary') if not await pg.is_visible('#lista-oggi button[data-id="ieri-1"]') else None
+        await pg.click('#lista-oggi button[data-id="ieri-1"]'); await pg.wait_for_timeout(200)
+        verifica('una riga di ieri si apre e si può correggere', await pg.is_visible('#s-conferma'))
+        await pg.click('#scheda .esiti button[data-esito=non_interessato]'); await pg.click('#s-conferma'); await pg.wait_for_timeout(200)
+        verifica('dopo la correzione si resta su ieri', (await pg.text_content('#titolo-lista')).startswith('Ieri'))
+        await pg.click('#giorni button:nth-child(3)'); await pg.wait_for_timeout(200)
+        verifica('tre giorni fa: Treggiorni', 'Treggiorni' in await pg.text_content('#lista-oggi'))
+        await detta(pg, 'Civico 50 Nuovodioggi assente')
+        verifica('dettando si torna a oggi e il contatto è di oggi', (await pg.text_content('#titolo-lista')) == 'Oggi' and 'Nuovodioggi' in await pg.text_content('#lista-oggi'))
+
         print('Campanella delle notifiche')
         await pg.click('#nav button[data-vista=giro]'); await pg.wait_for_timeout(150)
         pallino = await pg.locator('#campanella .pallino').count()

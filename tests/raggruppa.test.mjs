@@ -45,3 +45,21 @@ test('ultimo campanello in alto; ogni condominio resta un blocco con i suoi cogn
   const ordine = g.righe.flatMap((r) => (r.tipo === 'condominio' ? [`[${r.posizione.civico}]`, ...r.contatti.map((x) => x.id)] : [r.contatto.id]));
   assert.deepEqual(ordine, ['Casa8', '[6B]', 'Rugani', 'Boselli', '[6A]', 'Fralli', 'Pedrini', 'SantAngelo', 'Casa4']);
 });
+
+import { giorniRecenti } from '../js/raggruppa.js';
+
+test('giorni precedenti (Dani 28/11): oggi per primo, poi i giorni lavorati dal più recente, al massimo 7', () => {
+  const giorni = ['2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21', '2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27'];
+  const contatti = giorni.map((g) => ({ giorno: g }));
+  const r = giorniRecenti(contatti, [{ giorno: '2026-11-27' }], '2026-11-28');
+  assert.deepEqual(r, ['2026-11-28', '2026-11-27', '2026-11-26', '2026-11-25', '2026-11-24', '2026-11-23', '2026-11-21']);
+});
+
+test('giorni precedenti: la domenica senza lavoro non occupa posto; conta anche un giorno con soli condomini', () => {
+  const r = giorniRecenti([{ giorno: '2026-11-28' }], [{ giorno: '2026-11-27' }], '2026-11-30');
+  assert.deepEqual(r, ['2026-11-30', '2026-11-28', '2026-11-27']);
+});
+
+test('giorni precedenti: nessun dato vecchio → solo oggi (niente tasti)', () => {
+  assert.deepEqual(giorniRecenti([{ giorno: '2026-11-28' }], [], '2026-11-28'), ['2026-11-28']);
+});
